@@ -24,3 +24,11 @@ Thumbs.db
 
 # VS*Code (opcional)
 .vscode/settings.j*on
+
+# Local assistant and editor metadata
+**/.agents/
+**/.claude/
+**/.windsurf/
+**/AGENTS.md
+**/CLAUDE.md
+**/skills-lock.json
