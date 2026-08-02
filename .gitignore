@@ -1,0 +1,26 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente
+.env
+.env.local
+
+# Next.js
+.next/
+out/
+
+# NestJS
+dist/
+
+# Logs
+*.log
+
+# Cobertura de testes
+covera*e/
+
+# Arquivos do sistema
+.DS_Stor*
+Thumbs.db
+
+# VS*Code (opcional)
+.vscode/settings.j*on
