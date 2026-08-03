@@ -12,7 +12,7 @@ model User {
   name      String
   email     String   @unique
   password  String
-  cpf       String?
+  cpf       String?  @unique
   phone     String?
   role      UserRole @default(CLIENT)
   isActive  Boolean  @default(true)
