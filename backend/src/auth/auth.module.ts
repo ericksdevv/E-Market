@@ -4,15 +4,14 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { getJwtSecret } from './jwt.config';
 
 @Module({
   imports: [
     PrismaModule,
     JwtModule.registerAsync({
       useFactory: () => ({
-        secret:
-          process.env.JWT_SECRET ??
-          'dev-only-change-me',
+        secret: getJwtSecret(),
         signOptions: {
           expiresIn: '1d',
         },

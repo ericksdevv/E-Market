@@ -1,4 +1,4 @@
-import { AuthFooter, AuthFrame } from '../auth-frame';
+import { AuthFooter, AuthFrame } from "../auth-frame";
 
 export default async function RegisterPage({
   searchParams,
@@ -24,7 +24,11 @@ export default async function RegisterPage({
     <AuthFrame mode="register">
       <h1>Crie sua conta</h1>
       <p className="auth-subtitle">Informe seus dados para começar a comprar</p>
-      <form className="auth-form auth-register-form" action="/api/session" method="post">
+      <form
+        className="auth-form auth-register-form"
+        action="/api/session"
+        method="post"
+      >
         <input type="hidden" name="mode" value="register" />
         <label>
           Nome completo
@@ -33,11 +37,21 @@ export default async function RegisterPage({
         <div className="auth-two-columns">
           <label>
             E-mail
-            <input name="email" type="email" placeholder="seu@email.com" required />
+            <input
+              name="email"
+              type="email"
+              placeholder="seu@email.com"
+              required
+            />
           </label>
           <label>
             CPF
-            <input name="cpf" inputMode="numeric" placeholder="Somente números" required />
+            <input
+              name="cpf"
+              inputMode="numeric"
+              placeholder="Somente números"
+              required
+            />
           </label>
         </div>
         <p className="auth-section-title">Endereço de entrega</p>
@@ -66,12 +80,23 @@ export default async function RegisterPage({
           </label>
           <label>
             CEP
-            <input name="zipCode" inputMode="numeric" placeholder="00000000" required />
+            <input
+              name="zipCode"
+              inputMode="numeric"
+              placeholder="00000000"
+              required
+            />
           </label>
         </div>
         <label>
           Senha
-          <input name="password" type="password" placeholder="Crie uma senha forte" minLength={8} required />
+          <input
+            name="password"
+            type="password"
+            placeholder="Crie uma senha forte"
+            minLength={8}
+            required
+          />
         </label>
         <small className="auth-password-help">
           8+ caracteres, maiúscula, minúscula, número e símbolo.

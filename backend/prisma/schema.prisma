@@ -13,7 +13,7 @@ model User {
   email     String   @unique
   password  String
   cpf       String?  @unique
-  phone     String?
+  phone     String?  @unique
   role      UserRole @default(CLIENT)
   isActive  Boolean  @default(true)
   theme     String   @default("light")

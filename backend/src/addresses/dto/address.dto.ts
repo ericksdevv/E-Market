@@ -1,4 +1,10 @@
-import { IsBoolean, IsOptional, IsString, Length, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  Length,
+  MaxLength,
+} from 'class-validator';
 
 export class AddressDto {
   @IsOptional() @IsString() @MaxLength(40) label?: string;

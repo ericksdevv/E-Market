@@ -1,1 +1,16 @@
-export default function SplashPage(){return <main className="splash" aria-label="Carregando E-Market"><meta httpEquiv="refresh" content="3;url=/login"/><div className="splash-glow"/><div className="splash-content"><div className="splash-logo">e</div><h1>E-Market</h1><p>Seu mercado, no seu conforto.</p><div className="splash-loader"><span/></div></div></main>}
+export default function SplashPage() {
+  return (
+    <main className="splash" aria-label="Carregando E-Market">
+      <meta httpEquiv="refresh" content="3;url=/login" />
+      <div className="splash-glow" />
+      <div className="splash-content">
+        <div className="splash-logo">e</div>
+        <h1>E-Market</h1>
+        <p>Seu mercado, no seu conforto.</p>
+        <div className="splash-loader">
+          <span />
+        </div>
+      </div>
+    </main>
+  );
+}

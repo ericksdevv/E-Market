@@ -3,5 +3,9 @@ import { CouponsController } from './coupons.controller';
 import { CouponsService } from './coupons.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
-@Module({ imports: [PrismaModule, AuthModule], controllers: [CouponsController], providers: [CouponsService] })
+@Module({
+  imports: [PrismaModule, AuthModule],
+  controllers: [CouponsController],
+  providers: [CouponsService],
+})
 export class CouponsModule {}

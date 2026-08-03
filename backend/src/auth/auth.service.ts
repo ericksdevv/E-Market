@@ -22,7 +22,7 @@ export class AuthService {
   ) {}
 
   async register(data: CreateUserDto) {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const hashedPassword = await bcrypt.hash(data.password, 12);
 
     try {
       const user = await this.prisma.user.create({
@@ -71,7 +71,11 @@ export class AuthService {
       },
     });
 
-    if (!user || !user.isActive || !(await bcrypt.compare(data.password, user.password))) {
+    if (
+      !user ||
+      !user.isActive ||
+      !(await bcrypt.compare(data.password, user.password))
+    ) {
       throw new UnauthorizedException('E-mail, CPF ou senha inválidos');
     }
 
@@ -80,23 +84,42 @@ export class AuthService {
 
   async requestPasswordReset(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    const message = 'Se o e-mail estiver cadastrado, uma opção de recuperação será disponibilizada.';
+    const message =
+      'Se o e-mail estiver cadastrado, uma opção de recuperação será disponibilizada.';
     if (!user) return { message };
     const token = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(token).digest('hex');
-    await this.prisma.passwordResetToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } });
-    await this.prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
-    return { message, ...(process.env.NODE_ENV !== 'production' ? { resetToken: token } : {}) };
+    await this.prisma.passwordResetToken.updateMany({
+      where: { userId: user.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    });
+    return { message };
   }
 
   async resetPassword(token: string, password: string) {
     const tokenHash = createHash('sha256').update(token).digest('hex');
-    const reset = await this.prisma.passwordResetToken.findUnique({ where: { tokenHash } });
-    if (!reset || reset.usedAt || reset.expiresAt < new Date()) throw new BadRequestException('Link de recuperação inválido ou expirado');
+    const reset = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+    });
+    if (!reset || reset.usedAt || reset.expiresAt < new Date())
+      throw new BadRequestException('Link de recuperação inválido ou expirado');
     const hashedPassword = await bcrypt.hash(password, 12);
     await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: reset.userId }, data: { password: hashedPassword } }),
-      this.prisma.passwordResetToken.update({ where: { id: reset.id }, data: { usedAt: new Date() } }),
+      this.prisma.user.update({
+        where: { id: reset.userId },
+        data: { password: hashedPassword },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: reset.id },
+        data: { usedAt: new Date() },
+      }),
     ]);
     return { message: 'Senha atualizada com sucesso' };
   }
@@ -108,7 +131,6 @@ export class AuthService {
         id: true,
         name: true,
         email: true,
-        cpf: true,
         phone: true,
         role: true,
         theme: true,
@@ -129,12 +151,28 @@ export class AuthService {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data,
-      select: { id: true, theme: true, orderUpdates: true, marketingEmails: true },
+      select: {
+        id: true,
+        theme: true,
+        orderUpdates: true,
+        marketingEmails: true,
+      },
     });
     return { user };
   }
 
   async updateProfile(userId: number, data: UpdateUserDto) {
+    if (data.phone) {
+      const phoneOwner = await this.prisma.user.findFirst({
+        where: { phone: data.phone, id: { not: userId } },
+        select: { id: true },
+      });
+      if (phoneOwner) {
+        throw new ConflictException(
+          'Este número de celular já foi vinculado a outra conta',
+        );
+      }
+    }
     try {
       const user = await this.prisma.user.update({
         where: { id: userId },
@@ -147,7 +185,6 @@ export class AuthService {
           id: true,
           name: true,
           email: true,
-          cpf: true,
           phone: true,
           role: true,
           createdAt: true,
@@ -160,13 +197,26 @@ export class AuthService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
+        const fields = Array.isArray(error.meta?.target)
+          ? error.meta.target
+          : [];
+        if (fields.includes('phone')) {
+          throw new ConflictException(
+            'Este número de celular já foi vinculado a outra conta',
+          );
+        }
         throw new ConflictException('E-mail já cadastrado');
       }
       throw error;
     }
   }
 
-  private issueSession(user: { id: number; email: string; name: string; role?: string }) {
+  private issueSession(user: {
+    id: number;
+    email: string;
+    name: string;
+    role?: string;
+  }) {
     return {
       access_token: this.jwtService.sign({
         sub: user.id,
@@ -174,7 +224,12 @@ export class AuthService {
         name: user.name,
         role: user.role,
       }),
-      user: { id: user.id, name: user.name, email: user.email, role: user.role ?? 'CLIENT' },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role ?? 'CLIENT',
+      },
     };
   }
 }

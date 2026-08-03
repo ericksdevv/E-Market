@@ -10,7 +10,9 @@ export class FavoritesService {
       where: { userId },
       include: {
         product: {
-          include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } },
+          include: {
+            category: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },

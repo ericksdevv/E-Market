@@ -1,3 +1,149 @@
-'use client';
-import Link from 'next/link'; import { useEffect, useState } from 'react'; import { Shell, SectionHeading, ProductCard } from '../components'; import { categories, featuredProducts, Product } from '../store-data'; import { api, fromApiProduct } from '../api';
-export default function MarketPage(){const [products,setProducts]=useState<Product[]>(featuredProducts);useEffect(()=>{api<any[]>('/products').then(rows=>setProducts(rows.map(fromApiProduct))).catch(()=>undefined)},[]);return <Shell><main><div className="container hero"><section className="hero-grid"><div className="hero-copy"><p className="eyebrow">Mercado online da sua cidade</p><h1>Frescor na sua porta, todos os dias.</h1><p>Faça sua compra com tranquilidade. Selecionamos os melhores produtos e entregamos onde você estiver.</p><Link className="primary" href="/categorias">Começar a comprar →</Link></div><div className="hero-visual" aria-hidden="true"/></section></div><div className="container benefits"><div className="benefit"><span className="benefit-icon">⚡</span><div><b>Entrega expressa</b><span>Receba no mesmo dia</span></div></div><div className="benefit"><span className="benefit-icon">🥬</span><div><b>Produtos fresquinhos</b><span>Selecionados para você</span></div></div><div className="benefit"><span className="benefit-icon">🔒</span><div><b>Compra protegida</b><span>Pagamento seguro por PIX</span></div></div></div><section className="container section"><SectionHeading eyebrow="Compre por departamento" title="Tudo o que você precisa" description="Escolha uma categoria e encontre seus produtos favoritos."/><div className="category-grid">{categories.slice(0,6).map(c=><Link className="category" href={`/categorias/${c.slug}`} key={c.slug}><span className="category-emoji">{c.emoji}</span><b>{c.name}</b></Link>)}</div></section><section className="container section"><SectionHeading title="Ofertas do dia" description="Preços especiais por tempo limitado."/><div className="product-grid">{products.filter(p=>p.oldPrice).slice(0,4).map(p=><ProductCard key={p.id} product={p}/>)}</div></section></main></Shell>}
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { api, ApiProduct, fromApiProduct } from "../api";
+import { ProductCard, SectionHeading, Shell } from "../components";
+import { MarketIcon } from "../icons";
+import { featuredProducts, Product } from "../store-data";
+
+export default function MarketPage() {
+  const [products, setProducts] = useState<Product[]>(featuredProducts);
+
+  useEffect(() => {
+    api<ApiProduct[]>("/products")
+      .then((rows) => setProducts(rows.map(fromApiProduct)))
+      .catch(() => undefined);
+  }, []);
+
+  const offers = products.filter((product) => product.oldPrice).slice(0, 8);
+
+  return (
+    <Shell>
+      <main className="market-home">
+        <div className="container market-main">
+          <section className="market-hero">
+            <div className="market-hero-copy">
+              <span className="market-kicker">
+                <MarketIcon name="basket" /> Mercado online
+              </span>
+              <h1>
+                Compre bem.
+                <br />
+                <em>Receba em casa.</em>
+              </h1>
+              <p>
+                Produtos para o dia a dia, entrega acompanhada e pagamento
+                seguro.
+              </p>
+              <div className="market-hero-actions">
+                <Link className="market-primary" href="/categorias/hortifruti">
+                  Ver produtos <MarketIcon name="arrow" />
+                </Link>
+                <Link className="market-secondary" href="/ofertas">
+                  <MarketIcon name="tag" /> Ofertas
+                </Link>
+              </div>
+              <div className="market-proof">
+                <span>
+                  <MarketIcon name="check" /> Catálogo organizado
+                </span>
+                <span>
+                  <MarketIcon name="check" /> Pagamento protegido
+                </span>
+              </div>
+            </div>
+            <div className="market-hero-art" aria-hidden="true">
+              <div className="hero-orbit orbit-one">
+                <MarketIcon name="leaf" />
+              </div>
+              <div className="hero-orbit orbit-two">
+                <MarketIcon name="bread" />
+              </div>
+              <div className="hero-orbit orbit-three">
+                <MarketIcon name="milk" />
+              </div>
+              <div className="hero-basket">
+                <MarketIcon name="basket" />
+              </div>
+              <div className="hero-delivery-card">
+                <span>
+                  <MarketIcon name="truck" />
+                </span>
+                <div>
+                  <strong>Entrega acompanhada</strong>
+                  <small>Consulte o status do pedido</small>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section
+            className="market-benefits"
+            aria-label="Serviços do E-Market"
+          >
+            <article>
+              <span>
+                <MarketIcon name="truck" />
+              </span>
+              <div>
+                <strong>Entrega</strong>
+                <small>Prazo informado no checkout</small>
+              </div>
+            </article>
+            <article>
+              <span>
+                <MarketIcon name="leaf" />
+              </span>
+              <div>
+                <strong>Departamentos</strong>
+                <small>Produtos organizados</small>
+              </div>
+            </article>
+            <article>
+              <span>
+                <MarketIcon name="shield" />
+              </span>
+              <div>
+                <strong>Compra protegida</strong>
+                <small>Sessão autenticada</small>
+              </div>
+            </article>
+          </section>
+
+          <section className="market-section">
+            <SectionHeading
+              eyebrow="Preços em destaque"
+              title="Ofertas atuais"
+              description="Produtos com preço promocional identificado no catálogo."
+            />
+            <div className="market-product-grid">
+              {offers.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+            <div className="section-action">
+              <Link href="/ofertas">
+                Ver ofertas <MarketIcon name="arrow" />
+              </Link>
+            </div>
+          </section>
+
+          <section className="market-promo-band">
+            <div className="promo-band-icon">
+              <MarketIcon name="clock" />
+            </div>
+            <div>
+              <span>Histórico</span>
+              <h2>Consulte seus pedidos.</h2>
+              <p>Acompanhe o status e os itens de cada compra.</p>
+            </div>
+            <Link href="/pedidos">
+              Ver pedidos <MarketIcon name="arrow" />
+            </Link>
+          </section>
+        </div>
+      </main>
+    </Shell>
+  );
+}

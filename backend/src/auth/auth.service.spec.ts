@@ -1,140 +1,141 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
+import type { CreateUserDto } from './dto/create-user.dto';
 
-jest.mock('bcrypt', () => ({
-  hash: jest.fn(),
-  compare: jest.fn(),
-}));
-
+jest.mock('bcrypt', () => ({ hash: jest.fn(), compare: jest.fn() }));
 import * as bcrypt from 'bcrypt';
+
+const hashMock = bcrypt.hash as unknown as jest.MockedFunction<
+  (value: string, rounds: number) => Promise<string>
+>;
+const compareMock = bcrypt.compare as unknown as jest.MockedFunction<
+  (value: string, encrypted: string) => Promise<boolean>
+>;
 
 describe('AuthService', () => {
   let service: AuthService;
-  const prismaMock = {
-    user: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
-    },
-  };
-  const jwtServiceMock = {
-    sign: jest.fn(),
+  const prismaMock = { user: { create: jest.fn(), findFirst: jest.fn() } };
+  const jwtServiceMock = { sign: jest.fn() };
+  const registration: CreateUserDto = {
+    name: 'Erick Anderson',
+    email: 'erick@example.com',
+    cpf: '12345678901',
+    street: 'Rua Central',
+    number: '100',
+    neighborhood: 'Centro',
+    city: 'Fortaleza',
+    state: 'CE',
+    zipCode: '60000000',
+    password: 'Senha@123',
   };
 
   beforeEach(async () => {
-    const module: TestingModule =
-      await Test.createTestingModule({
-        providers: [
-          AuthService,
-          {
-            provide: PrismaService,
-            useValue: prismaMock,
-          },
-          {
-            provide: JwtService,
-            useValue: jwtServiceMock,
-          },
-        ],
-      }).compile();
-
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: JwtService, useValue: jwtServiceMock },
+      ],
+    }).compile();
     service = module.get<AuthService>(AuthService);
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
+  it('é criado pelo módulo', () => expect(service).toBeDefined());
 
-  it('register should hash password and return public user data', async () => {
-    jest.mocked(bcrypt.hash).mockResolvedValueOnce(
-      'hashed-password',
-    );
+  it('gera hash da senha e retorna apenas os dados públicos', async () => {
+    hashMock.mockResolvedValueOnce('hashed-password');
     prismaMock.user.create.mockResolvedValue({
       id: 1,
-      name: 'Erick',
-      email: 'erick@example.com',
-      createdAt: new Date('2026-08-02T00:00:00.000Z'),
+      name: registration.name,
+      email: registration.email,
+      role: UserRole.CLIENT,
     });
+    jwtServiceMock.sign.mockReturnValue('signed-token');
 
-    const result = await service.register({
-      name: 'Erick',
-      email: 'erick@example.com',
-      password: '123456',
+    const result = await service.register(registration);
+
+    expect(prismaMock.user.create).toHaveBeenCalledWith({
+      data: {
+        name: registration.name,
+        email: registration.email,
+        cpf: registration.cpf,
+        password: 'hashed-password',
+        addresses: {
+          create: {
+            street: registration.street,
+            number: registration.number,
+            neighborhood: registration.neighborhood,
+            city: registration.city,
+            state: registration.state,
+            zipCode: registration.zipCode,
+            isDefault: true,
+          },
+        },
+      },
+      select: { id: true, name: true, email: true, role: true },
     });
-
-    expect(prismaMock.user.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: {
-          name: 'Erick',
-          email: 'erick@example.com',
-          password: expect.any(String),
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          createdAt: true,
-        },
-      }),
-    );
     expect(result).toEqual({
-      id: 1,
-      name: 'Erick',
-      email: 'erick@example.com',
-      createdAt: new Date('2026-08-02T00:00:00.000Z'),
+      access_token: 'signed-token',
+      user: {
+        id: 1,
+        name: registration.name,
+        email: registration.email,
+        role: UserRole.CLIENT,
+      },
     });
   });
 
-  it('register should map duplicate email to ConflictException', async () => {
+  it('converte conflito de dados únicos em resposta de conflito', async () => {
     prismaMock.user.create.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError(
-        'Unique constraint failed on the fields: (`email`)',
-        {
-          code: 'P2002',
-          clientVersion: '6.19.3',
-        },
-      ),
-    );
-
-    await expect(
-      service.register({
-        name: 'Erick',
-        email: 'erick@example.com',
-        password: '123456',
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '6.19.3',
       }),
-    ).rejects.toBeInstanceOf(ConflictException);
+    );
+    await expect(service.register(registration)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
   });
 
-  it('login should return access token for valid credentials', async () => {
-    jest.mocked(bcrypt.compare).mockResolvedValueOnce(true);
-    prismaMock.user.findUnique.mockResolvedValue({
+  it('emite uma sessão para credenciais válidas', async () => {
+    compareMock.mockResolvedValueOnce(true);
+    prismaMock.user.findFirst.mockResolvedValue({
       id: 1,
-      email: 'erick@example.com',
+      name: registration.name,
+      email: registration.email,
       password: 'hashed-password',
+      role: UserRole.CLIENT,
+      isActive: true,
     });
-    jwtServiceMock.sign.mockReturnValue('token');
-
-    const result = await service.login({
-      email: 'erick@example.com',
-      password: '123456',
-    });
-
-    expect(result).toEqual({
-      access_token: 'token',
-    });
-  });
-
-  it('login should reject invalid user', async () => {
-    jest.mocked(bcrypt.compare).mockResolvedValueOnce(false);
-    prismaMock.user.findUnique.mockResolvedValue(null);
+    jwtServiceMock.sign.mockReturnValue('signed-token');
 
     await expect(
       service.login({
-        email: 'erick@example.com',
-        password: '123456',
+        email: registration.email,
+        password: registration.password,
+      }),
+    ).resolves.toEqual({
+      access_token: 'signed-token',
+      user: {
+        id: 1,
+        name: registration.name,
+        email: registration.email,
+        role: UserRole.CLIENT,
+      },
+    });
+  });
+
+  it('rejeita credenciais inválidas sem revelar qual campo falhou', async () => {
+    prismaMock.user.findFirst.mockResolvedValue(null);
+    await expect(
+      service.login({
+        email: registration.email,
+        password: registration.password,
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });

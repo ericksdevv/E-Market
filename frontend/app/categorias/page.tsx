@@ -1,2 +1,35 @@
-import { Shell } from '../components'; import Link from 'next/link'; import { categories } from '../store-data';
-export default function CategoriesPage(){return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / Categorias</span><h1>Compre por categoria</h1><p>Encontre tudo o que sua casa precisa.</p></header><section className="category-grid" style={{paddingBottom:55}}>{categories.map(c=><Link className="category" href={`/categorias/${c.slug}`} key={c.slug}><span className="category-emoji">{c.emoji}</span><b>{c.name}</b><small style={{display:'block',marginTop:7,color:'#657066'}}>Ver produtos →</small></Link>)}</section></main></Shell>}
+import Link from "next/link";
+import { Shell } from "../components";
+import { categoryIcon, MarketIcon } from "../icons";
+import { categories } from "../store-data";
+
+export default function CategoriesPage() {
+  return (
+    <Shell>
+      <main className="container">
+        <header className="page-head">
+          <span className="crumb">Início / Categorias</span>
+          <h1>Categorias</h1>
+          <p>Selecione um departamento.</p>
+        </header>
+        <section className="category-grid category-page-grid">
+          {categories.map((category) => (
+            <Link
+              className="category"
+              href={`/categorias/${category.slug}`}
+              key={category.slug}
+            >
+              <span className="category-emoji">
+                <MarketIcon name={categoryIcon[category.slug] ?? "basket"} />
+              </span>
+              <b>{category.name}</b>
+              <small>
+                Ver produtos <MarketIcon name="arrow" />
+              </small>
+            </Link>
+          ))}
+        </section>
+      </main>
+    </Shell>
+  );
+}

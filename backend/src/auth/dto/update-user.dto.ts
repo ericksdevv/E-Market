@@ -1,4 +1,5 @@
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsEmail, IsOptional, IsString, Matches } from 'class-validator';
 
 export class UpdateUserDto {
   @IsString()
@@ -8,7 +9,11 @@ export class UpdateUserDto {
   email!: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    const phone = String(value ?? '').replace(/\D/g, '');
+    return phone || undefined;
+  })
   @IsString()
-  @MinLength(8, { message: 'Telefone inválido' })
+  @Matches(/^\d{10,11}$/, { message: 'Informe um celular válido com DDD' })
   phone?: string;
 }

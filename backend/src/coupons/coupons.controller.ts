@@ -6,5 +6,10 @@ import { CouponsService } from './coupons.service';
 @Controller('coupons')
 export class CouponsController {
   constructor(private readonly coupons: CouponsService) {}
-  @Get('validate') validate(@Query('code') code = '', @Query('subtotal') subtotal = '0') { return this.coupons.validate(code, Number(subtotal)); }
+  @Get('validate') validate(
+    @Query('code') code = '',
+    @Query('subtotal') subtotal = '0',
+  ) {
+    return this.coupons.validate(code, Number(subtotal));
+  }
 }

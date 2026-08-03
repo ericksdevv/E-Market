@@ -25,7 +25,7 @@ Thumbs.db
 # VS*Code (opcional)
 .vscode/settings.j*on
 
-# Local assistant and editor metadata
+# Metadados locais de ferramentas
 **/.agents/
 **/.claude/
 **/.windsurf/

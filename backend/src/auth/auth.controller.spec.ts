@@ -1,59 +1,41 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import type { CreateUserDto } from './dto/create-user.dto';
 
 describe('AuthController', () => {
-  let controller: AuthController;
-
-  const authServiceMock = {
-    register: jest.fn(),
-    login: jest.fn(),
+  const authServiceMock = { register: jest.fn() };
+  const controller = new AuthController(
+    authServiceMock as unknown as AuthService,
+  );
+  const registration: CreateUserDto = {
+    name: 'Erick Anderson',
+    email: 'erick@example.com',
+    cpf: '12345678901',
+    street: 'Rua Central',
+    number: '100',
+    neighborhood: 'Centro',
+    city: 'Fortaleza',
+    state: 'CE',
+    zipCode: '60000000',
+    password: 'Senha@123',
   };
 
-  beforeEach(async () => {
-    const module: TestingModule =
-      await Test.createTestingModule({
-        controllers: [AuthController],
-        providers: [
-          {
-            provide: AuthService,
-            useValue: authServiceMock,
-          },
-        ],
-      }).compile();
+  beforeEach(() => jest.clearAllMocks());
 
-    controller = module.get<AuthController>(AuthController);
-    jest.clearAllMocks();
-  });
+  it('é criado corretamente', () => expect(controller).toBeDefined());
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
-
-  it('should forward register payload to AuthService', async () => {
-    authServiceMock.register.mockResolvedValue({
-      id: 1,
-      name: 'Erick',
-      email: 'erick@example.com',
-      createdAt: new Date('2026-08-02T00:00:00.000Z'),
-    });
-
-    const result = await controller.register({
-      name: 'Erick',
-      email: 'erick@example.com',
-      password: '123456',
-    });
-
-    expect(authServiceMock.register).toHaveBeenCalledWith({
-      name: 'Erick',
-      email: 'erick@example.com',
-      password: '123456',
-    });
-    expect(result).toEqual({
-      id: 1,
-      name: 'Erick',
-      email: 'erick@example.com',
-      createdAt: new Date('2026-08-02T00:00:00.000Z'),
-    });
+  it('encaminha o cadastro validado ao serviço', async () => {
+    const response = {
+      access_token: 'signed-token',
+      user: {
+        id: 1,
+        name: registration.name,
+        email: registration.email,
+        role: 'CLIENT',
+      },
+    };
+    authServiceMock.register.mockResolvedValue(response);
+    await expect(controller.register(registration)).resolves.toEqual(response);
+    expect(authServiceMock.register).toHaveBeenCalledWith(registration);
   });
 });

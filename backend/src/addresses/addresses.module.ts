@@ -4,5 +4,9 @@ import { AddressesService } from './addresses.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 
-@Module({ imports: [PrismaModule, AuthModule], controllers: [AddressesController], providers: [AddressesService] })
+@Module({
+  imports: [PrismaModule, AuthModule],
+  controllers: [AddressesController],
+  providers: [AddressesService],
+})
 export class AddressesModule {}
