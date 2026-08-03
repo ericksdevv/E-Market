@@ -1,2 +1,16 @@
-import { Shell, ProductCard } from '../components'; import { featuredProducts } from '../store-data';
-export default async function Search({searchParams}:{searchParams:Promise<{q?:string}>}){const {q=''}=await searchParams;const result=featuredProducts.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())||p.category.toLowerCase().includes(q.toLowerCase()));return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / Busca</span><h1>Resultados da busca</h1><p>{q?`Encontramos ${result.length} produto(s) para “${q}”.`:'Digite algo na busca para encontrar seus produtos.'}</p></header>{result.length?<section className="product-grid" style={{paddingBottom:54}}>{result.map(p=><ProductCard key={p.id} product={p}/>)}</section>:<div className="panel" style={{textAlign:'center',padding:55,marginBottom:54}}><div style={{fontSize:45}}>🔎</div><h2>Nenhum produto encontrado</h2><p style={{color:'#657066'}}>Tente procurar por outro termo ou navegue pelas categorias.</p></div>}</main></Shell>}
+'use client';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { api, fromApiProduct } from '../api';
+import { ProductCard, Shell } from '../components';
+import { Product } from '../store-data';
+function SearchContent() {
+  const q = useSearchParams().get('q') ?? '';
+  const [products, setProducts] = useState<Product[]>([]);
+  useEffect(() => { if (q) api<any[]>(`/products?q=${encodeURIComponent(q)}`).then((rows) => setProducts(rows.map(fromApiProduct))); else setProducts([]); }, [q]);
+  return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / Busca</span><h1>Resultados da busca</h1><p>{q ? `${products.length} produto(s) para “${q}”.` : 'Digite um produto, marca ou categoria.'}</p></header>{products.length ? <section className="product-grid page-products">{products.map((product) => <ProductCard key={product.id} product={product}/>)}</section> : q && <div className="panel empty-state"><div>⌕</div><h2>Nenhum produto encontrado</h2><p>Tente um termo mais simples ou navegue pelas categorias.</p></div>}</main></Shell>;
+}
+
+export default function SearchPage() {
+  return <Suspense fallback={<div className="app-loading"><span className="loading-logo">e</span><p>Buscando produtos...</p></div>}><SearchContent/></Suspense>;
+}

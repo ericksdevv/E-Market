@@ -1,3 +1,13 @@
 'use client';
-import { Shell, ProductCard, useStore } from '../components'; import { featuredProducts } from '../store-data';
-export default function Favorites(){const {favorites}=useStore();const products=featuredProducts.filter(p=>favorites.includes(p.id));return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / Favoritos</span><h1>Seus favoritos</h1><p>Guarde os produtos que você mais gosta para encontrar depois.</p></header>{products.length?<div className="product-grid" style={{paddingBottom:54}}>{products.map(p=><ProductCard product={p} key={p.id}/>)}</div>:<div className="panel" style={{textAlign:'center',marginBottom:54,padding:50}}><div style={{fontSize:47}}>♡</div><h2>Nenhum favorito ainda</h2><p style={{color:'#657066'}}>Clique no coração dos produtos que você quer salvar.</p></div>}</main></Shell>}
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { api, fromApiProduct } from '../api';
+import { ProductCard, Shell } from '../components';
+import { Product } from '../store-data';
+
+export default function FavoritesPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { api<any[]>('/favorites').then((rows) => setProducts(rows.map((item) => fromApiProduct(item.product)))).finally(() => setLoading(false)); }, []);
+  return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / Favoritos</span><h1>Seus favoritos</h1><p>Produtos salvos na sua conta.</p></header>{loading ? <div className="panel">Carregando favoritos...</div> : products.length ? <div className="product-grid page-products">{products.map((product) => <ProductCard product={product} key={product.id}/>)}</div> : <div className="panel empty-state"><div>♡</div><h2>Nenhum favorito ainda</h2><p>Clique no coração de um produto para encontrá-lo aqui.</p><Link className="primary" href="/categorias">Explorar produtos</Link></div>}</main></Shell>;
+}

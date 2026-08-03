@@ -39,3 +39,9 @@ export async function POST(request: NextRequest) {
   }
   return result;
 }
+
+export async function DELETE(request: NextRequest) {
+  const response = NextResponse.redirect(new URL('/login', request.url), 303);
+  response.cookies.delete('emarket-session');
+  return response;
+}

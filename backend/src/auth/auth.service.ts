@@ -11,6 +11,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { createHash, randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -69,11 +71,34 @@ export class AuthService {
       },
     });
 
-    if (!user || !(await bcrypt.compare(data.password, user.password))) {
+    if (!user || !user.isActive || !(await bcrypt.compare(data.password, user.password))) {
       throw new UnauthorizedException('E-mail, CPF ou senha inválidos');
     }
 
     return this.issueSession(user);
+  }
+
+  async requestPasswordReset(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    const message = 'Se o e-mail estiver cadastrado, uma opção de recuperação será disponibilizada.';
+    if (!user) return { message };
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    await this.prisma.passwordResetToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } });
+    await this.prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
+    return { message, ...(process.env.NODE_ENV !== 'production' ? { resetToken: token } : {}) };
+  }
+
+  async resetPassword(token: string, password: string) {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const reset = await this.prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+    if (!reset || reset.usedAt || reset.expiresAt < new Date()) throw new BadRequestException('Link de recuperação inválido ou expirado');
+    const hashedPassword = await bcrypt.hash(password, 12);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: reset.userId }, data: { password: hashedPassword } }),
+      this.prisma.passwordResetToken.update({ where: { id: reset.id }, data: { usedAt: new Date() } }),
+    ]);
+    return { message: 'Senha atualizada com sucesso' };
   }
 
   async me(userId: number) {
@@ -86,6 +111,9 @@ export class AuthService {
         cpf: true,
         phone: true,
         role: true,
+        theme: true,
+        orderUpdates: true,
+        marketingEmails: true,
         createdAt: true,
       },
     });
@@ -94,6 +122,15 @@ export class AuthService {
       throw new UnauthorizedException('Usuário não encontrado');
     }
 
+    return { user };
+  }
+
+  async updateSettings(userId: number, data: UpdateSettingsDto) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: { id: true, theme: true, orderUpdates: true, marketingEmails: true },
+    });
     return { user };
   }
 

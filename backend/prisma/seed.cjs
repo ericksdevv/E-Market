@@ -29,7 +29,7 @@ const products=[
 ];
 async function main(){
  const map={}; for(const [name,slug] of categories){map[name]=await prisma.category.upsert({where:{slug},update:{name,isActive:true},create:{name,slug}})}
- for(const [name,slug,category,brand,unit,price,promotionalPrice,stock,url] of products){const p=await prisma.product.upsert({where:{slug},update:{name,brand,unit,price,promotionalPrice,stock,isActive:true,categoryId:map[category].id},create:{name,slug,brand,unit,price,promotionalPrice,stock,categoryId:map[category].id}});await prisma.productImage.deleteMany({where:{productId:p.id}});await prisma.productImage.create({data:{productId:p.id,url,sortOrder:0}})}
+ for(const [name,slug,category,brand,unit,salePrice,regularPrice,stock,url] of products){const price=regularPrice??salePrice;const promotionalPrice=regularPrice?salePrice:null;const p=await prisma.product.upsert({where:{slug},update:{name,brand,unit,price,promotionalPrice,stock,isActive:true,categoryId:map[category].id},create:{name,slug,brand,unit,price,promotionalPrice,stock,categoryId:map[category].id}});await prisma.productImage.deleteMany({where:{productId:p.id}});await prisma.productImage.create({data:{productId:p.id,url,sortOrder:0}})}
  console.log(`Catálogo pronto: ${products.length} produtos.`);
 }
 main().catch(console.error).finally(()=>prisma.$disconnect());

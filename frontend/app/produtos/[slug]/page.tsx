@@ -1,3 +1,22 @@
 'use client';
-import Link from 'next/link'; import { Shell, ProductCard, useStore } from '../../components'; import { featuredProducts, money } from '../../store-data';
-export default function ProductPage(){const product=featuredProducts[0];const {add,favorite,favorites}=useStore();return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / {product.category} / {product.name}</span></header><div className="content-grid" style={{gridTemplateColumns:'1fr 390px'}}><section className="panel"><div className="product-art" style={{height:390,fontSize:150,background:product.bg}}>{product.emoji}</div><div style={{display:'flex',gap:10,marginTop:14}}>{[0,1,2].map(x=><button key={x} style={{width:48,height:48,border:x===0?'2px solid #17683a':'1px solid #e2e9e1',borderRadius:10,background:'#f4f8f2',fontSize:22}}>{product.emoji}</button>)}</div><h2>Sobre este produto</h2><p style={{color:'#657066',lineHeight:1.6}}>Produto selecionado com cuidado para chegar fresco até sua casa. A imagem é ilustrativa e o preço pode variar conforme o peso final.</p></section><aside className="panel"><span className="product-tag" style={{position:'static',display:'inline-block'}}>{product.tag}</span><p className="unit" style={{marginTop:15}}>{product.category} · {product.unit}</p><h1 style={{margin:'6px 0 14px',fontSize:29}}>{product.name}</h1>{product.oldPrice&&<span className="old-price">De {money(product.oldPrice)}</span>}<div className="price" style={{fontSize:30,marginBottom:8}}>{money(product.price)}</div><p style={{fontSize:12,color:'#17683a'}}>Em estoque · pronto para entrega</p><button className="primary full" onClick={()=>add(product)}>Adicionar ao carrinho</button><button className="text-link" style={{border:0,background:'none',display:'block',margin:'18px auto 3px'}} onClick={()=>favorite(product.id)}>{favorites.includes(product.id)?'♥ Salvo nos favoritos':'♡ Adicionar aos favoritos'}</button></aside></div><section className="section"><h2>Você também pode gostar</h2><div className="product-grid">{featuredProducts.slice(1,5).map(p=><ProductCard product={p} key={p.id}/>)}</div></section></main></Shell>}
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { api, fromApiProduct } from '../../api';
+import { Shell, useStore } from '../../components';
+import { Product, money } from '../../store-data';
+
+export default function ProductPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const { add, favorite, favorites } = useStore();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [raw, setRaw] = useState<any>(null);
+  const [error, setError] = useState('');
+  useEffect(() => { api<any>(`/products/${slug}`).then((data) => { setRaw(data); setProduct(fromApiProduct(data)); }).catch((value) => setError(value.message)); }, [slug]);
+  if (error) return <Shell><main className="container"><div className="panel empty-state"><h1>Produto não encontrado</h1><p>{error}</p><Link className="primary" href="/categorias">Voltar ao catálogo</Link></div></main></Shell>;
+  if (!product) return <Shell><main className="container"><div className="panel product-loading">Carregando produto...</div></main></Shell>;
+  return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / {product.category} / {product.name}</span></header>
+    <div className="product-detail"><section className="panel product-gallery"><div className="product-main-image">{product.image ? <img src={product.image} alt={product.name}/> : <span>{product.emoji}</span>}</div><div className="product-description"><h2>Sobre este produto</h2><p>{raw.description || `${product.name} selecionado para chegar em ótimas condições até sua casa.`}</p><div className="product-facts"><span><b>Marca</b>{product.brand || 'E-Market'}</span><span><b>Conteúdo</b>{product.unit}</span><span><b>Categoria</b>{product.category}</span><span><b>Estoque</b>{raw.stock} unidades</span></div></div></section>
+    <aside className="panel product-buy"><span className="product-tag static">{product.tag || 'Disponível'}</span><p className="unit">{product.brand} · {product.unit}</p><h1>{product.name}</h1>{product.oldPrice && <span className="old-price">De {money(product.oldPrice)}</span>}<div className="price product-price">{money(product.price)}</div><p className="stock-note">✓ Em estoque · pronto para entrega</p><button className="primary full" onClick={() => add(product)}>Adicionar ao carrinho</button><button className="secondary full" onClick={() => favorite(product.id)}>{favorites.includes(product.id) ? '♥ Remover dos favoritos' : '♡ Adicionar aos favoritos'}</button><div className="delivery-note"><b>Entrega rápida</b><small>Informe o endereço no checkout para calcular.</small></div></aside></div>
+  </main></Shell>;
+}

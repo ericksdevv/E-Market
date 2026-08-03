@@ -1,2 +1,10 @@
-import { Shell, ProductCard } from '../components'; import { featuredProducts } from '../store-data';
-export default function Offers(){return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / Ofertas</span><h1>Ofertas do dia</h1><p>Preços especiais para você economizar na compra da semana.</p></header><div className="promo" style={{marginBottom:25}}><div><h2>Até 30% OFF selecionados</h2><p>Ofertas válidas enquanto durarem os estoques.</p></div><strong style={{fontSize:34,color:'#c8ee6b'}}>HOJE</strong></div><section className="product-grid" style={{paddingBottom:54}}>{featuredProducts.map(p=><ProductCard key={p.id} product={p}/>)}</section></main></Shell>}
+'use client';
+import { useEffect, useState } from 'react';
+import { api, fromApiProduct } from '../api';
+import { ProductCard, Shell } from '../components';
+import { Product } from '../store-data';
+export default function OffersPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  useEffect(() => { api<any[]>('/products?offer=true').then((rows) => setProducts(rows.map(fromApiProduct))); }, []);
+  return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / Ofertas</span><h1>Ofertas do dia</h1><p>Preços especiais enquanto durarem os estoques.</p></header><div className="promo"><div><h2>Economize na compra da semana</h2><p>Produtos selecionados com desconto aplicado automaticamente.</p></div><strong>HOJE</strong></div><section className="product-grid page-products">{products.map((product) => <ProductCard key={product.id} product={product}/>)}</section></main></Shell>;
+}

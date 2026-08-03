@@ -16,6 +16,9 @@ model User {
   phone     String?
   role      UserRole @default(CLIENT)
   isActive  Boolean  @default(true)
+  theme     String   @default("light")
+  orderUpdates Boolean @default(true)
+  marketingEmails Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
@@ -23,6 +26,18 @@ model User {
   favorites Favorite[]
   carts     Cart[]
   orders    Order[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
 }
 
 model Address {

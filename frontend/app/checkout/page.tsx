@@ -1,3 +1,67 @@
 'use client';
-import { useState } from 'react'; import Link from 'next/link'; import { Shell, useStore } from '../components'; import { money } from '../store-data';
-export default function CheckoutPage(){const {cart,total}=useStore();const [pay,setPay]=useState('pix');const [done,setDone]=useState(false);const delivery=total>=100?0:7.9;if(done)return <Shell><main className="container" style={{padding:'70px 0',textAlign:'center'}}><div className="panel" style={{maxWidth:600,margin:'auto'}}><div style={{fontSize:64}}>✓</div><h1>Pedido confirmado!</h1><p style={{color:'#657066',lineHeight:1.6}}>Recebemos seu pedido. Você receberá atualizações pelo WhatsApp e poderá acompanhar tudo pela sua conta.</p><Link className="primary" href="/pedidos">Acompanhar pedido</Link></div></main></Shell>;return <Shell><main className="container"><header className="page-head"><span className="crumb">Carrinho / Checkout</span><h1>Finalizar compra</h1><p>Falta pouco para receber suas compras.</p></header><div className="content-grid"><section className="form-grid"><div className="panel"><h2 style={{marginTop:0}}>1. Onde você quer receber?</h2><div className="choice selected"><span>📍</span><div><b>Casa</b><br/><small>Rua Central, 120 · Centro</small></div></div><button style={{border:0,background:'none',color:'#17683a',fontWeight:800,marginTop:12}}>+ Adicionar novo endereço</button></div><div className="panel"><h2 style={{marginTop:0}}>2. Escolha a entrega</h2><label className="choice selected"><input type="radio" defaultChecked name="delivery"/><div><b>Entrega expressa</b><br/><small>Hoje, entre 40 e 60 min · {delivery?money(delivery):'Grátis'}</small></div></label></div><div className="panel"><h2 style={{marginTop:0}}>3. Como você quer pagar?</h2><div className="form-grid">{[['pix','⚡ PIX','Aprovação imediata'],['card','💳 Cartão','Crédito ou débito'],['cash','💵 Dinheiro','Pague ao receber']].map(([value,title,info])=><label key={value} className={`choice ${pay===value?'selected':''}`}><input type="radio" checked={pay===value} onChange={()=>setPay(value)} name="pay"/><div><b>{title}</b><br/><small>{info}</small></div></label>)}</div>{pay==='pix'&&<p style={{fontSize:13,color:'#17683a',marginBottom:0}}>O QR Code será gerado após confirmar o pedido.</p>}</div></section><aside className="panel"><h2 style={{marginTop:0}}>Resumo</h2>{cart.map(x=><div className="summary-row" key={x.id}><span>{x.quantity}× {x.name}</span><b>{money(x.price*x.quantity)}</b></div>)}<div className="summary-row"><span>Entrega</span><b>{delivery?money(delivery):'Grátis'}</b></div><div className="summary-total"><span>Total</span><span>{money(total+delivery)}</span></div><button className="primary full" disabled={!cart.length} onClick={()=>setDone(true)}>{cart.length?'Confirmar pedido':'Adicione itens ao carrinho'}</button><p style={{fontSize:11,color:'#738075',textAlign:'center'}}>🔒 Pagamento processado com segurança.</p></aside></div></main></Shell>}
+
+import Link from 'next/link';
+import { FormEvent, useEffect, useState } from 'react';
+import { api } from '../api';
+import { Shell, useStore } from '../components';
+import { money } from '../store-data';
+
+type Address = { id: number; label?: string; street: string; number: string; neighborhood: string; city: string; state: string; zipCode: string; isDefault: boolean };
+
+export default function CheckoutPage() {
+  const { cart, total, clearCart } = useStore();
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addressId, setAddressId] = useState<number | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState('PIX');
+  const [shippingMethod, setShippingMethod] = useState('DELIVERY');
+  const [couponCode, setCouponCode] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [showAddress, setShowAddress] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [order, setOrder] = useState<any>(null);
+
+  const loadAddresses = () => api<Address[]>('/addresses').then((rows) => { setAddresses(rows); if (!addressId && rows.length) setAddressId((rows.find((item) => item.isDefault) ?? rows[0]).id); });
+  useEffect(() => { void loadAddresses(); }, []);
+  const delivery = shippingMethod === 'PICKUP' || total >= 100 ? 0 : 7.9;
+
+  const addAddress = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setError('');
+    const form = new FormData(event.currentTarget);
+    try {
+      await api('/addresses', { method: 'POST', body: JSON.stringify(Object.fromEntries(form.entries())) });
+      setShowAddress(false); await loadAddresses();
+    } catch (value) { setError(value instanceof Error ? value.message : 'Não foi possível salvar o endereço'); }
+  };
+
+  const applyCoupon = async () => {
+    try { const data = await api<{ discount: number }>(`/coupons/validate?code=${encodeURIComponent(couponCode)}&subtotal=${total}`); setDiscount(Math.min(total, data.discount)); setError(''); }
+    catch (value) { setDiscount(0); setError(value instanceof Error ? value.message : 'Cupom inválido'); }
+  };
+
+  const confirm = async () => {
+    if (!addressId || !cart.length) return;
+    setSubmitting(true); setError('');
+    try {
+      const created = await api('/orders', { method: 'POST', body: JSON.stringify({ addressId, shippingMethod, paymentMethod, couponCode: couponCode || undefined }) });
+      setOrder(created); clearCart();
+    } catch (value) { setError(value instanceof Error ? value.message : 'Não foi possível confirmar o pedido'); }
+    finally { setSubmitting(false); }
+  };
+
+  if (order) return <Shell><main className="container confirmation"><section className="panel confirmation-card"><div className="success-icon">✓</div><p className="eyebrow">Pedido #{String(order.id).padStart(6, '0')}</p><h1>Pedido confirmado!</h1><p>Recebemos sua compra e ela já aparece no acompanhamento de pedidos.</p>{order.payment?.method === 'PIX' && <div className="pix-box"><b>PIX gerado</b><code>{order.payment.qrCode}</code><small>Ambiente de demonstração — nenhum valor real será cobrado.</small></div>}<Link className="primary" href="/pedidos">Acompanhar pedido</Link></section></main></Shell>;
+
+  return <Shell><main className="container"><header className="page-head"><span className="crumb">Carrinho / Checkout</span><h1>Finalizar compra</h1><p>Revise a entrega e o pagamento antes de confirmar.</p></header>
+    <div className="content-grid"><section className="form-grid">
+      <div className="panel"><div className="panel-title"><div><h2>1. Endereço de entrega</h2><p>Escolha onde deseja receber.</p></div><button className="secondary" onClick={() => setShowAddress(!showAddress)}>+ Novo endereço</button></div>
+        {addresses.map((address) => <label className={`choice ${addressId === address.id ? 'selected' : ''}`} key={address.id}><input type="radio" checked={addressId === address.id} onChange={() => setAddressId(address.id)}/><div><b>{address.label || 'Endereço'}</b><br/><small>{address.street}, {address.number} · {address.neighborhood}, {address.city}/{address.state}</small></div></label>)}
+        {!addresses.length && !showAddress && <p className="empty-note">Cadastre um endereço para continuar.</p>}
+        {showAddress && <form className="address-form" onSubmit={addAddress}><input name="label" placeholder="Nome (Casa, Trabalho)"/><input name="zipCode" placeholder="CEP" required/><input name="street" placeholder="Rua" required/><input name="number" placeholder="Número" required/><input name="neighborhood" placeholder="Bairro" required/><input name="city" placeholder="Cidade" required/><input name="state" placeholder="UF" maxLength={2} required/><button className="primary" type="submit">Salvar endereço</button></form>}
+      </div>
+      <div className="panel"><h2>2. Forma de entrega</h2>{[['DELIVERY','Entrega expressa',delivery ? money(delivery) : 'Grátis'],['PICKUP','Retirar no mercado','Grátis']].map(([value,title,info]) => <label className={`choice ${shippingMethod === value ? 'selected' : ''}`} key={value}><input type="radio" checked={shippingMethod === value} onChange={() => setShippingMethod(value)}/><div><b>{title}</b><br/><small>{info}</small></div></label>)}</div>
+      <div className="panel"><h2>3. Pagamento</h2>{[['PIX','⚡ PIX','Aprovação imediata'],['CREDIT_CARD','💳 Cartão de crédito','Pagamento seguro'],['BOLETO','▤ Boleto','Vencimento em 1 dia útil']].map(([value,title,info]) => <label className={`choice ${paymentMethod === value ? 'selected' : ''}`} key={value}><input type="radio" checked={paymentMethod === value} onChange={() => setPaymentMethod(value)}/><div><b>{title}</b><br/><small>{info}</small></div></label>)}</div>
+    </section>
+    <aside className="panel order-summary"><h2>Resumo</h2>{cart.map((item) => <div className="summary-row" key={item.id}><span>{item.quantity}× {item.name}</span><b>{money(item.price * item.quantity)}</b></div>)}<div className="coupon-row"><input value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase())} placeholder="Cupom"/><button onClick={applyCoupon}>Aplicar</button></div><div className="summary-row"><span>Entrega</span><b>{delivery ? money(delivery) : 'Grátis'}</b></div>{discount > 0 && <div className="summary-row discount"><span>Desconto</span><b>− {money(discount)}</b></div>}<div className="summary-total"><span>Total</span><span>{money(Math.max(0, total + delivery - discount))}</span></div>{error && <p className="form-error">{error}</p>}<button className="primary full" disabled={!cart.length || !addressId || submitting} onClick={confirm}>{submitting ? 'Confirmando...' : cart.length ? 'Confirmar pedido' : 'Carrinho vazio'}</button><p className="secure-note">🔒 Seus dados são enviados de forma protegida.</p></aside>
+    </div>
+  </main></Shell>;
+}

@@ -1,2 +1,19 @@
-import Link from 'next/link'; import { Shell } from '../components';
-export default function Orders(){return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / Meus pedidos</span><h1>Meus pedidos</h1><p>Acompanhe suas compras e consulte pedidos anteriores.</p></header><section className="panel" style={{marginBottom:54}}><div style={{display:'flex',justifyContent:'space-between',gap:15,alignItems:'center',paddingBottom:18,borderBottom:'1px solid #e8ece7'}}><div><span className="eyebrow" style={{color:'#17683a'}}>Pedido #EM-1048</span><h2 style={{margin:'4px 0'}}>Em separação</h2><p style={{margin:0,color:'#657066'}}>Hoje · 3 itens · R$ 50,65</p></div><span style={{fontSize:30}}>🛍️</span></div><div style={{display:'flex',gap:12,justifyContent:'space-between',alignItems:'center',paddingTop:17}}><span style={{fontSize:13,color:'#657066'}}>Atualizado há poucos minutos</span><Link className="primary" href="/">Ver detalhes</Link></div></section></main></Shell>}
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { api } from '../api';
+import { Shell } from '../components';
+import { money } from '../store-data';
+
+const labels: Record<string, string> = { AWAITING_PAYMENT: 'Aguardando pagamento', PAID: 'Pago', PREPARING: 'Em separação', OUT_FOR_DELIVERY: 'Saiu para entrega', DELIVERED: 'Entregue', CANCELED: 'Cancelado' };
+export default function OrdersPage() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = () => api<any[]>('/orders').then(setOrders).finally(() => setLoading(false));
+  useEffect(() => { void load(); }, []);
+  const cancel = async (id: number) => { if (!window.confirm('Deseja cancelar este pedido?')) return; await api(`/orders/${id}/cancel`, { method: 'PATCH' }); await load(); };
+  return <Shell><main className="container"><header className="page-head"><span className="crumb">Início / Meus pedidos</span><h1>Meus pedidos</h1><p>Acompanhe suas compras e consulte o histórico.</p></header>
+    <section className="orders-list">{loading ? <div className="panel">Carregando pedidos...</div> : orders.length ? orders.map((order) => <article className="panel order-card" key={order.id}><div className="order-card-head"><div><span className="eyebrow">Pedido #{String(order.id).padStart(6, '0')}</span><h2>{labels[order.status] ?? order.status}</h2><p>{new Date(order.createdAt).toLocaleString('pt-BR')} · {order.items.length} {order.items.length === 1 ? 'item' : 'itens'}</p></div><strong>{money(Number(order.total))}</strong></div><div className="order-items">{order.items.map((item: any) => <span key={item.id}>{item.quantity}× {item.name}</span>)}</div><div className="order-actions"><span>Pagamento: {order.payment?.method?.replaceAll('_', ' ')}</span>{['AWAITING_PAYMENT','PAID'].includes(order.status) && <button className="danger-link" onClick={() => cancel(order.id)}>Cancelar pedido</button>}</div></article>) : <div className="panel empty-state"><div>📦</div><h2>Você ainda não fez pedidos</h2><p>Escolha seus produtos e finalize sua primeira compra.</p><Link className="primary" href="/categorias">Começar a comprar</Link></div>}</section>
+  </main></Shell>;
+}
