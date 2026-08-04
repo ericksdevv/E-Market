@@ -39,23 +39,42 @@ export async function api<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(`/api/backend${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
-    cache: "no-store",
-  });
-  const data = (await response.json().catch(() => null)) as ApiError | T;
-  if (!response.ok) {
-    if (response.status === 401 && typeof window !== "undefined")
-      window.location.href = "/login";
-    const error = data as ApiError;
-    throw new Error(
-      Array.isArray(error?.message)
-        ? error.message[0]
-        : (error?.message ?? "Não foi possível concluir a solicitação"),
-    );
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 12_000);
+
+  try {
+    const response = await fetch(`/api/backend${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers ?? {}),
+      },
+      cache: "no-store",
+      credentials: "same-origin",
+      signal: options.signal ?? controller.signal,
+    });
+    const data = (await response.json().catch(() => null)) as ApiError | T;
+    if (!response.ok) {
+      if (response.status === 401 && typeof window !== "undefined")
+        window.location.href = "/login";
+      const error = data as ApiError;
+      throw new Error(
+        Array.isArray(error?.message)
+          ? error.message[0]
+          : (error?.message ?? "Não foi possível concluir a solicitação"),
+      );
+    }
+    return data as T;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(
+        "A resposta demorou mais que o esperado. Tente novamente.",
+      );
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
   }
-  return data as T;
 }
 
 export function fromApiProduct(value: ApiProduct): Product {

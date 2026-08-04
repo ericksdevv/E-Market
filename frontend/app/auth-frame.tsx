@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { MarketIcon } from "./icons";
 
 export function AuthFrame({
   children,
@@ -28,48 +27,16 @@ export function AuthFrame({
           <span>E-Market</span>
         </Link>
         <div className="auth-showcase-copy">
-          <span className="auth-showcase-kicker">
-            <MarketIcon name="basket" /> Compras online
-          </span>
           <h1>
             Bem-vindo ao
             <br />
             E-Market.
           </h1>
-          <p>
-            Produtos para o dia a dia, pedidos acompanhados e entrega no
-            endereço cadastrado.
-          </p>
-          <div className="auth-benefits">
-            <span>
-              <i>
-                <MarketIcon name="truck" />
-              </i>
-              <b>Entrega</b>
-              <small>Acompanhamento do pedido</small>
-            </span>
-            <span>
-              <i>
-                <MarketIcon name="shield" />
-              </i>
-              <b>Conta protegida</b>
-              <small>Acesso autenticado</small>
-            </span>
-            <span>
-              <i>
-                <MarketIcon name="tag" />
-              </i>
-              <b>Ofertas</b>
-              <small>Preços identificados</small>
-            </span>
-          </div>
+          <p>Seu mercado no conforto da sua casa, do pedido à entrega.</p>
         </div>
       </section>
       <section className="auth-form-side">
         <div className="auth-card">
-          <span className="auth-card-badge">
-            <MarketIcon name="shield" /> Acesso protegido
-          </span>
           <p className="auth-welcome">
             {mode === "login"
               ? userName
@@ -78,20 +45,6 @@ export function AuthFrame({
               : "Crie sua conta"}
           </p>
           {children}
-        </div>
-        <div className="auth-trust">
-          <span>
-            <MarketIcon name="shield" />
-            <small>Ambiente seguro</small>
-          </span>
-          <span>
-            <MarketIcon name="truck" />
-            <small>Entrega acompanhada</small>
-          </span>
-          <span>
-            <MarketIcon name="heart" />
-            <small>Favoritos salvos</small>
-          </span>
         </div>
       </section>
     </main>

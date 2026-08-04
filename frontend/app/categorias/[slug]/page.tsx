@@ -10,11 +10,19 @@ export default function CategoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [sort, setSort] = useState("recent");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
   useEffect(() => {
+    window.requestAnimationFrame(() => {
+      setLoading(true);
+      setError("");
+      setProducts([]);
+    });
     api<ApiProduct[]>(`/products?category=${slug}&sort=${sort}`)
       .then((rows) => setProducts(rows.map(fromApiProduct)))
+      .catch((value: Error) => setError(value.message))
       .finally(() => setLoading(false));
-  }, [slug, sort]);
+  }, [reload, slug, sort]);
   const label = slug
     .replaceAll("-", " ")
     .replace(/\b\w/g, (value) => value.toUpperCase())
@@ -42,7 +50,18 @@ export default function CategoryPage() {
           </label>
         </header>
         {loading ? (
-          <div className="panel">Carregando produtos...</div>
+          <div className="catalog-skeleton" aria-label="Carregando produtos" />
+        ) : error ? (
+          <div className="panel empty-state">
+            <h2>Não foi possível carregar os produtos</h2>
+            <p>{error}</p>
+            <button
+              className="secondary"
+              onClick={() => setReload((v) => v + 1)}
+            >
+              Tentar novamente
+            </button>
+          </div>
         ) : products.length ? (
           <section className="product-grid page-products">
             {products.map((product) => (
@@ -52,7 +71,7 @@ export default function CategoryPage() {
         ) : (
           <div className="panel empty-state">
             <h2>Nenhum produto nesta categoria</h2>
-            <p>Estamos atualizando o catálogo. Tente novamente em breve.</p>
+            <p>Não há itens disponíveis neste departamento no momento.</p>
           </div>
         )}
       </main>

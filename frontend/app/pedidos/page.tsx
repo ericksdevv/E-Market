@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api, ApiOrder } from "../api";
 import { Shell } from "../components";
 import { MarketIcon } from "../icons";
@@ -19,22 +19,35 @@ const labels: Record<string, string> = {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const load = useCallback(
-    () =>
-      api<ApiOrder[]>("/orders")
-        .then(setOrders)
-        .finally(() => setLoading(false)),
-    [],
-  );
+  const [error, setError] = useState("");
+  const load = () => {
+    setLoading(true);
+    setError("");
+    return api<ApiOrder[]>("/orders")
+      .then(setOrders)
+      .catch((value: Error) => setError(value.message))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    api<ApiOrder[]>("/orders")
+      .then(setOrders)
+      .catch((value: Error) => setError(value.message))
+      .finally(() => setLoading(false));
+  }, []);
 
   const cancel = async (id: number) => {
     if (!window.confirm("Deseja cancelar este pedido?")) return;
-    await api(`/orders/${id}/cancel`, { method: "PATCH" });
-    await load();
+    try {
+      await api(`/orders/${id}/cancel`, { method: "PATCH" });
+      await load();
+    } catch (value) {
+      setError(
+        value instanceof Error
+          ? value.message
+          : "Não foi possível cancelar o pedido",
+      );
+    }
   };
 
   return (
@@ -47,7 +60,15 @@ export default function OrdersPage() {
         </header>
         <section className="orders-list">
           {loading ? (
-            <div className="panel">Carregando pedidos...</div>
+            <div className="catalog-skeleton" aria-label="Carregando pedidos" />
+          ) : error ? (
+            <div className="panel empty-state">
+              <h2>Não foi possível carregar seus pedidos</h2>
+              <p>{error}</p>
+              <button className="secondary" onClick={() => void load()}>
+                Tentar novamente
+              </button>
+            </div>
           ) : orders.length ? (
             orders.map((order) => (
               <article className="panel order-card" key={order.id}>

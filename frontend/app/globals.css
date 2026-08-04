@@ -483,6 +483,7 @@ a {
   box-shadow: 0 8px 20px rgba(22, 63, 32, 0.06);
 }
 [data-theme="dark"] {
+  color-scheme: dark;
   --ink: #e8f1e8;
   --muted: #b2c0b4;
   --line: #314436;

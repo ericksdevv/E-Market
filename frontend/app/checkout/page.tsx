@@ -71,7 +71,7 @@ export default function CheckoutPage() {
     [],
   );
   useEffect(() => {
-    void loadAddresses();
+    void loadAddresses().catch((value: Error) => setError(value.message));
   }, [loadAddresses]);
   const delivery = shippingMethod === "PICKUP" || total >= 100 ? 0 : 7.9;
 

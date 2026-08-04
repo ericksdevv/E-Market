@@ -16,10 +16,9 @@ export default function SettingsPage() {
       .then((data) => {
         setOrderUpdates(data.user.orderUpdates);
         setMarketingEmails(data.user.marketingEmails);
-        if (data.user.theme) setDark(data.user.theme === "dark");
       })
       .catch(() => undefined);
-  }, [setDark]);
+  }, []);
 
   const save = async (updates: Record<string, boolean | string>) => {
     await api("/auth/settings", {
@@ -66,6 +65,7 @@ export default function SettingsPage() {
                 onChange={(event) => {
                   setDark(event.target.checked);
                   setSaved(true);
+                  window.setTimeout(() => setSaved(false), 2000);
                 }}
               />
             </label>

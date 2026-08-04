@@ -13,12 +13,19 @@ function SearchContent() {
     query: "",
     products: [],
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!query) return;
-    api<ApiProduct[]>(`/products?q=${encodeURIComponent(query)}`).then((rows) =>
-      setResult({ query, products: rows.map(fromApiProduct) }),
-    );
+    window.requestAnimationFrame(() => {
+      setLoading(true);
+      setError("");
+    });
+    api<ApiProduct[]>(`/products?q=${encodeURIComponent(query)}`)
+      .then((rows) => setResult({ query, products: rows.map(fromApiProduct) }))
+      .catch((value: Error) => setError(value.message))
+      .finally(() => setLoading(false));
   }, [query]);
 
   const products = result.query === query ? result.products : [];
@@ -34,7 +41,15 @@ function SearchContent() {
               : "Digite um produto, marca ou categoria."}
           </p>
         </header>
-        {products.length ? (
+        {loading ? (
+          <div className="catalog-skeleton" aria-label="Buscando produtos" />
+        ) : error ? (
+          <div className="panel empty-state">
+            <MarketIcon name="search" />
+            <h2>Não foi possível concluir a busca</h2>
+            <p>{error}</p>
+          </div>
+        ) : products.length ? (
           <section className="product-grid page-products">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />

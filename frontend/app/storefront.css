@@ -1155,6 +1155,7 @@
 /* Navegação lateral de departamentos */
 .app-frame {
   --global-sidebar-width: 280px;
+  min-height: 100svh;
 }
 .app-wide {
   width: calc(100% - 64px);
@@ -1389,9 +1390,15 @@
   display: none;
 }
 .app-main-area {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: calc(100svh - 81px);
   margin-left: 0;
   transition: margin-left 0.42s var(--ease-out);
+}
+.app-main-area > main {
+  min-height: calc(100svh - 81px);
 }
 .sidebar-open .app-main-area {
   margin-left: var(--global-sidebar-width);
@@ -1411,6 +1418,9 @@
 }
 .app-main-area .market-hero-copy {
   padding-left: clamp(38px, 4vw, 70px);
+}
+.app-main-area .market-hero + .market-section {
+  padding-top: 40px;
 }
 
 [data-theme="dark"] .global-sidebar,

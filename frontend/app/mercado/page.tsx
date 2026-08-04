@@ -5,15 +5,18 @@ import { useEffect, useState } from "react";
 import { api, ApiProduct, fromApiProduct } from "../api";
 import { ProductCard, SectionHeading, Shell } from "../components";
 import { MarketIcon } from "../icons";
-import { featuredProducts, Product } from "../store-data";
+import { Product } from "../store-data";
 
 export default function MarketPage() {
-  const [products, setProducts] = useState<Product[]>(featuredProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api<ApiProduct[]>("/products")
       .then((rows) => setProducts(rows.map(fromApiProduct)))
-      .catch(() => undefined);
+      .catch((value: Error) => setError(value.message))
+      .finally(() => setLoading(false));
   }, []);
 
   const offers = products.filter((product) => product.oldPrice).slice(0, 8);
@@ -24,18 +27,12 @@ export default function MarketPage() {
         <div className="container market-main">
           <section className="market-hero">
             <div className="market-hero-copy">
-              <span className="market-kicker">
-                <MarketIcon name="basket" /> Mercado online
-              </span>
               <h1>
                 Compre bem.
                 <br />
                 <em>Receba em casa.</em>
               </h1>
-              <p>
-                Produtos para o dia a dia, entrega acompanhada e pagamento
-                seguro.
-              </p>
+              <p>Escolha seus produtos e acompanhe o pedido até a entrega.</p>
               <div className="market-hero-actions">
                 <Link className="market-primary" href="/categorias/hortifruti">
                   Ver produtos <MarketIcon name="arrow" />
@@ -43,14 +40,6 @@ export default function MarketPage() {
                 <Link className="market-secondary" href="/ofertas">
                   <MarketIcon name="tag" /> Ofertas
                 </Link>
-              </div>
-              <div className="market-proof">
-                <span>
-                  <MarketIcon name="check" /> Catálogo organizado
-                </span>
-                <span>
-                  <MarketIcon name="check" /> Pagamento protegido
-                </span>
               </div>
             </div>
             <div className="market-hero-art" aria-hidden="true">
@@ -66,49 +55,7 @@ export default function MarketPage() {
               <div className="hero-basket">
                 <MarketIcon name="basket" />
               </div>
-              <div className="hero-delivery-card">
-                <span>
-                  <MarketIcon name="truck" />
-                </span>
-                <div>
-                  <strong>Entrega acompanhada</strong>
-                  <small>Consulte o status do pedido</small>
-                </div>
-              </div>
             </div>
-          </section>
-
-          <section
-            className="market-benefits"
-            aria-label="Serviços do E-Market"
-          >
-            <article>
-              <span>
-                <MarketIcon name="truck" />
-              </span>
-              <div>
-                <strong>Entrega</strong>
-                <small>Prazo informado no checkout</small>
-              </div>
-            </article>
-            <article>
-              <span>
-                <MarketIcon name="leaf" />
-              </span>
-              <div>
-                <strong>Departamentos</strong>
-                <small>Produtos organizados</small>
-              </div>
-            </article>
-            <article>
-              <span>
-                <MarketIcon name="shield" />
-              </span>
-              <div>
-                <strong>Compra protegida</strong>
-                <small>Sessão autenticada</small>
-              </div>
-            </article>
           </section>
 
           <section className="market-section">
@@ -117,16 +64,35 @@ export default function MarketPage() {
               title="Ofertas atuais"
               description="Produtos com preço promocional identificado no catálogo."
             />
-            <div className="market-product-grid">
-              {offers.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-            <div className="section-action">
-              <Link href="/ofertas">
-                Ver ofertas <MarketIcon name="arrow" />
-              </Link>
-            </div>
+            {loading ? (
+              <div
+                className="catalog-skeleton"
+                aria-label="Carregando ofertas"
+              />
+            ) : error ? (
+              <div className="panel empty-state compact">
+                <h3>Não foi possível carregar o catálogo</h3>
+                <p>{error}</p>
+              </div>
+            ) : offers.length ? (
+              <>
+                <div className="market-product-grid">
+                  {offers.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+                <div className="section-action">
+                  <Link href="/ofertas">
+                    Ver ofertas <MarketIcon name="arrow" />
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <div className="panel empty-state compact">
+                <h3>Nenhuma oferta disponível</h3>
+                <p>Os produtos promocionais aparecerão aqui.</p>
+              </div>
+            )}
           </section>
 
           <section className="market-promo-band">

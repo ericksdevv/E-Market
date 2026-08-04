@@ -7,9 +7,16 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { api, ApiCart, ApiFavorite, fromApiProduct } from "./api";
+import {
+  api,
+  ApiCart,
+  ApiFavorite,
+  ApiUserSettings,
+  fromApiProduct,
+} from "./api";
 import type { Product } from "./store-data";
 
 type CartLine = Product & { quantity: number };
@@ -52,6 +59,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<number[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [dark, setDarkState] = useState(false);
+  const [themeReady, setThemeReady] = useState(false);
+  const accountStateLoaded = useRef(false);
+  const hasLocalTheme = useRef(false);
 
   const notify = useCallback((message: string) => {
     setToast(message);
@@ -59,30 +69,64 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const savedDark = localStorage.getItem("emarket-dark") === "true";
-    window.requestAnimationFrame(() => setDarkState(savedDark));
-    if (publicRoutes.has(pathname)) return;
+    const savedTheme = localStorage.getItem("emarket-dark");
+    hasLocalTheme.current = savedTheme !== null;
+    window.requestAnimationFrame(() => {
+      setDarkState(savedTheme === "true");
+      setThemeReady(true);
+    });
+  }, []);
 
-    Promise.all([api<ApiCart>("/cart"), api<ApiFavorite[]>("/favorites")])
-      .then(([cartData, favoriteData]) => {
-        setCart(mapCart(cartData));
-        setFavorites(favoriteData.map((item) => item.productId));
-      })
-      .catch(() => undefined);
+  useEffect(() => {
+    if (publicRoutes.has(pathname)) return;
+    if (accountStateLoaded.current) return;
+
+    accountStateLoaded.current = true;
+
+    Promise.allSettled([
+      api<ApiCart>("/cart"),
+      api<ApiFavorite[]>("/favorites"),
+      api<ApiUserSettings>("/auth/me"),
+    ]).then(([cartResult, favoritesResult, accountResult]) => {
+      if (cartResult.status === "fulfilled") {
+        setCart(mapCart(cartResult.value));
+      }
+      if (favoritesResult.status === "fulfilled") {
+        setFavorites(favoritesResult.value.map((item) => item.productId));
+      }
+      if (
+        accountResult.status === "fulfilled" &&
+        !hasLocalTheme.current &&
+        accountResult.value.user.theme
+      ) {
+        setDarkState(accountResult.value.user.theme === "dark");
+      }
+      if (
+        cartResult.status === "rejected" &&
+        favoritesResult.status === "rejected" &&
+        accountResult.status === "rejected"
+      ) {
+        accountStateLoaded.current = false;
+      }
+    });
   }, [pathname]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-    localStorage.setItem("emarket-dark", String(dark));
-  }, [dark]);
+    if (themeReady) localStorage.setItem("emarket-dark", String(dark));
+  }, [dark, themeReady]);
 
-  const persistTheme = useCallback((value: boolean) => {
-    setDarkState(value);
-    void api("/auth/settings", {
-      method: "PATCH",
-      body: JSON.stringify({ theme: value ? "dark" : "light" }),
-    }).catch(() => undefined);
-  }, []);
+  const persistTheme = useCallback(
+    (value: boolean) => {
+      setDarkState(value);
+      setThemeReady(true);
+      void api("/auth/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ theme: value ? "dark" : "light" }),
+      }).catch(() => notify("Tema aplicado somente neste dispositivo"));
+    },
+    [notify],
+  );
 
   const value = useMemo<StoreState>(
     () => ({
@@ -142,15 +186,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       },
       clearCart: () => setCart([]),
       favorite: (id) => {
+        const wasFavorite = favorites.includes(id);
         setFavorites((items) =>
           items.includes(id)
             ? items.filter((item) => item !== id)
             : [...items, id],
         );
-        void api("/favorites/toggle", {
+        void api<{ favorited: boolean }>("/favorites/toggle", {
           method: "POST",
           body: JSON.stringify({ productId: id }),
-        }).catch((error: Error) => notify(error.message));
+        })
+          .then(({ favorited }) =>
+            setFavorites((items) =>
+              favorited
+                ? Array.from(new Set([...items, id]))
+                : items.filter((item) => item !== id),
+            ),
+          )
+          .catch((error: Error) => {
+            setFavorites((items) =>
+              wasFavorite
+                ? Array.from(new Set([...items, id]))
+                : items.filter((item) => item !== id),
+            );
+            notify(error.message);
+          });
       },
       toast,
       dark,
