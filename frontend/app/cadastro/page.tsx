@@ -48,9 +48,12 @@ export default async function RegisterPage({
             Celular
             <input
               name="phone"
+              type="tel"
               inputMode="tel"
-              pattern="[0-9 ()+-]{10,16}"
+              pattern="[0-9 ()+-]{10,20}"
+              maxLength={20}
               autoComplete="tel"
+              title="Informe o DDD e o número, com ou sem o código +55"
               required
             />
           </label>

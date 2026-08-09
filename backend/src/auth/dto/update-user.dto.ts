@@ -29,7 +29,11 @@ export class UpdateUserDto {
 
   @IsOptional()
   @Transform(({ value }) => {
-    const phone = String(value ?? '').replace(/\D/g, '');
+    const digits = String(value ?? '').replace(/\D/g, '');
+    const phone =
+      digits.startsWith('55') && (digits.length === 12 || digits.length === 13)
+        ? digits.slice(2)
+        : digits;
     return phone || undefined;
   })
   @IsString()

@@ -53,7 +53,7 @@ O projeto utiliza PostgreSQL e migrations do Prisma. O modelo cobre usuários, e
 
 As migrations também aplicam restrições de unicidade e consistência para CPF, telefone, carrinho, favoritos, estoque, preços, totais financeiros, quantidades e expiração de pedidos.
 
-## Configuração
+## Início rápido
 
 Requisitos:
 
@@ -61,82 +61,80 @@ Requisitos:
 - PostgreSQL
 - npm
 
-Backend:
+Com o PostgreSQL em execução e o arquivo `backend/.env` configurado, abra um
+único terminal do PowerShell na pasta do projeto e execute:
 
 ```powershell
-cd backend
-Copy-Item .env.example .env
-npm install
-npm run db:generate
-npm run db:migrate
-npm run db:seed
-```
-
-Preencha `DATABASE_URL` e gere um `JWT_SECRET` aleatório com pelo menos 32 caracteres no arquivo `backend/.env`. O token de recuperação só é exibido localmente quando `PASSWORD_RESET_MODE="demo"`; mantenha `PASSWORD_RESET_MODE="disabled"` fora do ambiente de desenvolvimento e conecte um serviço de e-mail antes de publicar.
-
-Frontend:
-
-```powershell
-cd frontend
-Copy-Item .env.example .env.local
-npm install
-```
-
-## Execução local
-
-Antes de iniciar, confirme que o PostgreSQL está em execução e que o arquivo
-`backend/.env` contém a `DATABASE_URL` do banco atual. Abra dois terminais do
-PowerShell no VS Code pelo menu **Terminal > Novo Terminal**.
-
-### Terminal 1 — API e banco de dados
-
-```powershell
-Set-Location "C:\Users\erick\Desktop\e-market\backend"
-npm install
-npm run db:generate
-npm run db:migrate
-npm run start:dev
-```
-
-Quando aparecer que a aplicação Nest foi iniciada, mantenha esse terminal
-aberto. A API ficará disponível em `http://127.0.0.1:3000`.
-
-### Terminal 2 — site
-
-```powershell
-Set-Location "C:\Users\erick\Desktop\e-market\frontend"
-npm install
-if (-not (Test-Path .env.local)) { Copy-Item .env.example .env.local }
+Set-Location "C:\Users\erick\Desktop\e-market"
 npm run dev
 ```
 
-O frontend já está configurado para usar a porta `3001`; não é necessário
-informar a porta no comando. Acesse
-[http://127.0.0.1:3001](http://127.0.0.1:3001).
+No Windows, também é possível iniciar dando dois cliques no arquivo
+`iniciar-emarket.cmd` localizado na raiz do projeto.
 
-Depois da primeira instalação, para iniciar novamente basta executar
-`npm run start:dev` na pasta `backend` e `npm run dev` na pasta `frontend`.
+Esse único comando:
 
-### Verificação rápida
+- instala as dependências caso ainda não existam;
+- cria `frontend/.env.local` quando necessário;
+- gera e salva um `JWT_SECRET` seguro quando o valor estiver ausente ou inválido;
+- solicita a senha do PostgreSQL de forma oculta se a conexão ainda usar os
+  valores de exemplo;
+- gera o Prisma Client automaticamente quando necessário;
+- inicia a API na porta `3000`;
+- espera a API responder e inicia o site na porta `3001`.
 
-Com os dois terminais abertos, execute em um terceiro terminal:
+Depois que aparecer **E-Market iniciado com sucesso**, acesse
+[http://127.0.0.1:3001](http://127.0.0.1:3001). Para encerrar os dois
+servidores, pressione `Ctrl+C` no mesmo terminal.
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:3000
-Start-Process http://127.0.0.1:3001
-```
+## Primeira configuração
 
-Se houver mensagem de conexão recusada, verifique se os terminais continuam
-abertos e se as portas estão ocupadas pelos dois servidores:
+O projeto já possui um banco configurado nesta máquina. Em uma instalação nova,
+se `backend/.env` não existir, o inicializador cria uma cópia do arquivo de
+exemplo e informa que é necessário preencher:
+
+- `DATABASE_URL`: conexão com o PostgreSQL;
+- `CORS_ORIGINS`: `http://localhost:3001,http://127.0.0.1:3001`.
+
+O `JWT_SECRET` é gerado automaticamente e nunca é exibido no terminal. Caso ele
+seja substituído, somente as sessões anteriores são encerradas; contas, pedidos
+e demais registros do PostgreSQL não são alterados.
+
+Quando a `DATABASE_URL` ainda contém `user:password`, o mesmo comando solicita
+a senha do usuário `postgres`, valida o acesso ao banco `emarket` e salva a
+configuração localmente. A senha digitada não aparece no terminal e o arquivo
+`backend/.env` é ignorado pelo Git.
+
+Durante a digitação são mostrados apenas asteriscos. Use `Backspace` para
+corrigir. Informe a senha do servidor PostgreSQL definida na instalação, não a
+senha da conta do site, do Windows ou a senha mestra do pgAdmin.
+
+Execute o comando em um PowerShell normal ou no terminal integrado do VS Code.
+Não use o painel **Saída**, a extensão Code Runner ou um terminal sem interação,
+pois eles não permitem a digitação protegida da senha.
+
+O token de recuperação só é exibido localmente quando
+`PASSWORD_RESET_MODE="demo"`. Mantenha esse recurso desabilitado fora do
+ambiente de desenvolvimento.
+
+## Se não iniciar
+
+O novo inicializador mostra exatamente qual etapa falhou. As causas mais comuns
+são o PostgreSQL desligado, uma `DATABASE_URL` incorreta ou outro programa já
+ocupando as portas `3000` ou `3001`. Para verificar as portas:
 
 ```powershell
 Get-NetTCPConnection -State Listen -LocalPort 3000,3001
 ```
 
-Se a API apresentar erro de conexão com o banco, inicie o serviço do
-PostgreSQL e confira a `DATABASE_URL` em `backend/.env`. Não execute
-`npm run db:seed` em todas as inicializações; use esse comando somente quando
-quiser cadastrar novamente os dados demonstrativos no banco.
+O backend agora inicia sem o modo de observação que causava o erro
+`taskkill: Acesso negado` no Windows. Alterações no backend exigem reiniciar o
+comando; o frontend continua com atualização automática.
+
+Migrations não são executadas durante a inicialização normal. Quando houver uma
+nova migration no projeto, aplique-a separadamente com `npm run db:migrate` na
+raiz. Os dados demonstrativos podem ser recriados, quando necessário, com
+`npm run db:seed`.
 
 ## Verificações
 

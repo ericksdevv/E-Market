@@ -1,0 +1,15 @@
+{
+  "name": "e-market",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Inicialização integrada do frontend e backend do E-Market",
+  "scripts": {
+    "dev": "node scripts/start-local.mjs",
+    "start": "node scripts/start-local.mjs",
+    "setup": "node scripts/start-local.mjs --setup-only",
+    "db:migrate": "npm run db:migrate --prefix backend",
+    "db:seed": "npm run db:seed --prefix backend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "test": "npm test --prefix backend -- --runInBand"
+  }
+}

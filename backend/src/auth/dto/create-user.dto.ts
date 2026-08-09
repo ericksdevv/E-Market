@@ -12,6 +12,13 @@ import { IsCpf } from '../cpf.validator';
 const trimText = (value: unknown): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
+const normalizeBrazilianPhone = (value: unknown): string => {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  return digits.startsWith('55') && (digits.length === 12 || digits.length === 13)
+    ? digits.slice(2)
+    : digits;
+};
+
 export class CreateUserDto {
   @Transform(({ value }) => trimText(value))
   @IsNotEmpty()
@@ -27,7 +34,7 @@ export class CreateUserDto {
   @IsEmail()
   @MaxLength(254)
   declare email: string;
-  @Transform(({ value }) => String(value ?? '').replace(/\D/g, ''))
+  @Transform(({ value }) => normalizeBrazilianPhone(value))
   @Matches(/^\d{10,11}$/, {
     message: 'Informe um celular com DDD',
   })

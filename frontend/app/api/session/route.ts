@@ -4,6 +4,13 @@ import { isTrustedOrigin } from "../origin-validation";
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:3000";
 const digits = (value: FormDataEntryValue | null) =>
   String(value ?? "").replace(/\D/g, "");
+const phoneDigits = (value: FormDataEntryValue | null) => {
+  const normalized = digits(value);
+  return normalized.startsWith("55") &&
+    (normalized.length === 12 || normalized.length === 13)
+    ? normalized.slice(2)
+    : normalized;
+};
 
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
@@ -20,7 +27,7 @@ export async function POST(request: NextRequest) {
       ? {
           name: String(form.get("name") ?? "").trim(),
           email: String(form.get("email") ?? "").trim(),
-          phone: digits(form.get("phone")),
+          phone: phoneDigits(form.get("phone")),
           cpf: digits(form.get("cpf")),
           street: String(form.get("street") ?? "").trim(),
           number: String(form.get("number") ?? "").trim(),
