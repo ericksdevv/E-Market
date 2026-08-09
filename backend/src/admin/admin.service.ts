@@ -74,6 +74,14 @@ export class AdminService {
       if (!transitions[order.status].includes(status)) {
         throw new BadRequestException('Alteração de status não permitida');
       }
+      if (
+        status === OrderStatus.PAID &&
+        (!order.expiresAt || order.expiresAt <= new Date())
+      ) {
+        throw new BadRequestException(
+          'O prazo de pagamento deste pedido expirou',
+        );
+      }
 
       const claimed = await tx.order.updateMany({
         where: { id, status: order.status },

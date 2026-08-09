@@ -72,7 +72,7 @@ async function main() {
   }
 
   const cookie = setCookie.split(';', 1)[0];
-  const confirmation = await fetch(location, {
+  const confirmation = await fetch(new URL(location, webUrl), {
     headers: { Cookie: cookie },
     redirect: 'manual',
   });
@@ -118,8 +118,23 @@ async function main() {
     throw new Error('O tema escuro não foi persistido na conta');
   }
 
+  const logout = await fetch(`${webUrl}/api/logout`, {
+    method: 'POST',
+    headers: { Cookie: cookie, Origin: webUrl },
+    redirect: 'manual',
+  });
+  if (logout.status !== 303) {
+    throw new Error(`Logout retornou status ${logout.status}`);
+  }
+  const revokedSession = await fetch(`${apiUrl}/auth/me`, {
+    headers: { Authorization: `Bearer ${cookie.split('=', 2)[1]}` },
+  });
+  if (revokedSession.status !== 401) {
+    throw new Error('O token permaneceu válido após o logout');
+  }
+
   console.log(
-    'Fluxo web validado: login, catálogo e tema escuro funcionam pelo frontend.',
+    'Fluxo web validado: login, catálogo, tema escuro e revogação de sessão funcionam pelo frontend.',
   );
 }
 

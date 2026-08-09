@@ -5,14 +5,14 @@ function firstHeaderValue(value: string | null) {
 }
 
 function normalizeLocalHost(value: string) {
-  return value.replace(/^localhost$/i, '127.0.0.1');
+  return value.replace(/^localhost$/i, "127.0.0.1");
 }
 
 export function isTrustedOrigin(request: NextRequest) {
   const origin = request.headers.get("origin");
 
   if (!origin) {
-    return true;
+    return request.headers.get("sec-fetch-site") === "same-origin";
   }
 
   const host =
@@ -29,7 +29,9 @@ export function isTrustedOrigin(request: NextRequest) {
   try {
     const source = new URL(origin);
     const sourceHost = normalizeLocalHost(source.hostname);
-    const targetHost = normalizeLocalHost(new URL(`${protocol}://${host}`).hostname);
+    const targetHost = normalizeLocalHost(
+      new URL(`${protocol}://${host}`).hostname,
+    );
     return (
       source.protocol === `${protocol}:` &&
       source.port === new URL(`${protocol}://${host}`).port &&

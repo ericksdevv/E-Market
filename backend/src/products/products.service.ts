@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 @Injectable()
 export class ProductsService {
@@ -18,10 +23,28 @@ export class ProductsService {
       Number.isFinite(minPrice) && minPrice! >= 0 ? minPrice : undefined;
     const validMax =
       Number.isFinite(maxPrice) && maxPrice! >= 0 ? maxPrice : undefined;
-    const currentPrice = {
-      gte: validMin,
-      lte: validMax,
-    };
+    if (
+      validMin !== undefined &&
+      validMax !== undefined &&
+      validMin > validMax
+    ) {
+      throw new BadRequestException(
+        'O preço mínimo não pode ser maior que o preço máximo',
+      );
+    }
+    const priceConditions: Prisma.ProductWhereInput[] = [
+      {
+        promotionalPrice: {
+          not: null,
+          gte: validMin,
+          lte: validMax,
+        },
+      },
+      {
+        promotionalPrice: null,
+        price: { gte: validMin, lte: validMax },
+      },
+    ];
     const orderBy =
       filters.sort === 'price-asc'
         ? { price: 'asc' as const }
@@ -45,7 +68,7 @@ export class ProductsService {
             }
           : {}),
         ...(validMin !== undefined || validMax !== undefined
-          ? { price: currentPrice }
+          ? { OR: priceConditions }
           : {}),
         ...(filters.offer ? { promotionalPrice: { not: null } } : {}),
       },

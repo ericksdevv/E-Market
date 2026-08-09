@@ -199,6 +199,7 @@ model Order {
   @@index([userId])
   @@index([addressId])
   @@index([couponId])
+  @@index([status, expiresAt])
 }
 
 model OrderItem {

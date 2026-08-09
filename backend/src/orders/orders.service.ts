@@ -206,6 +206,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Pagamento de demonstração desativado');
     }
 
+    const now = new Date();
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findFirst({
         where: { id, userId },
@@ -214,12 +215,19 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       if (!order) throw new NotFoundException('Pedido não encontrado');
       if (
         order.status !== OrderStatus.AWAITING_PAYMENT ||
-        order.payment?.status !== PaymentStatus.PENDING
+        order.payment?.status !== PaymentStatus.PENDING ||
+        !order.expiresAt ||
+        order.expiresAt <= now
       ) {
         throw new BadRequestException('Este pagamento não está pendente');
       }
       const claim = await tx.order.updateMany({
-        where: { id, userId, status: OrderStatus.AWAITING_PAYMENT },
+        where: {
+          id,
+          userId,
+          status: OrderStatus.AWAITING_PAYMENT,
+          expiresAt: { gt: now },
+        },
         data: { status: OrderStatus.PAID },
       });
       if (claim.count === 0) {

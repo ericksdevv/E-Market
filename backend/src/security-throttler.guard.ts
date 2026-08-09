@@ -4,7 +4,6 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 type RequestLike = {
   ip?: unknown;
   socket?: { remoteAddress?: unknown };
-  body?: { email?: unknown; cpf?: unknown };
   route?: { path?: unknown };
   path?: unknown;
 };
@@ -23,16 +22,10 @@ export class SecurityThrottlerGuard extends ThrottlerGuard {
       request.ip,
       safeText(request.socket?.remoteAddress, 'unknown'),
     );
-    const identifier = safeText(request.body?.email ?? request.body?.cpf)
-      .trim()
-      .toLowerCase()
-      .slice(0, 254);
     const route = safeText(
       request.route?.path,
       safeText(request.path, 'request'),
     );
-    return Promise.resolve(
-      identifier ? `${ip}:${route}:${identifier}` : `${ip}:${route}`,
-    );
+    return Promise.resolve(`${ip}:${route}`);
   }
 }

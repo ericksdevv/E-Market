@@ -11,22 +11,6 @@ export default function MarketPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [showLoginSuccess, setShowLoginSuccess] = useState(false);
-
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("autenticacao") !== "sucesso") return;
-
-    url.searchParams.delete("autenticacao");
-    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-
-    const showTimeout = window.setTimeout(() => setShowLoginSuccess(true), 0);
-    const timeout = window.setTimeout(() => setShowLoginSuccess(false), 2_400);
-    return () => {
-      window.clearTimeout(showTimeout);
-      window.clearTimeout(timeout);
-    };
-  }, []);
 
   useEffect(() => {
     api<ApiProduct[]>("/products")
@@ -39,17 +23,6 @@ export default function MarketPage() {
 
   return (
     <Shell>
-      {showLoginSuccess && (
-        <div className="market-auth-toast" role="status">
-          <span>
-            <MarketIcon name="check" />
-          </span>
-          <div>
-            <strong>Login efetuado com sucesso</strong>
-            <small>Bem-vindo ao E-Market.</small>
-          </div>
-        </div>
-      )}
       <main className="market-home">
         <div className="container market-main">
           <section className="market-hero">

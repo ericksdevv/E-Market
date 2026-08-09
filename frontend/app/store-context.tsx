@@ -49,7 +49,6 @@ export function useStore() {
 function mapCart(data: ApiCart): CartLine[] {
   return data.items.map((item) => ({
     ...fromApiProduct(item.product),
-    price: Number(item.unitPrice),
     quantity: item.quantity,
   }));
 }
@@ -237,7 +236,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const data = await api<ApiCart>("/cart/items", { method: "DELETE" });
           setCart(mapCart(data));
         } catch (error) {
-          notify(error instanceof Error ? error.message : "Não foi possível limpar o carrinho");
+          notify(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível limpar o carrinho",
+          );
           await reloadCart().catch(() => undefined);
         }
       },
@@ -266,12 +269,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           );
           return favorited;
         } catch (error) {
-            setFavorites((items) =>
-              wasFavorite
-                ? Array.from(new Set([...items, id]))
-                : items.filter((item) => item !== id),
-            );
-          notify(error instanceof Error ? error.message : "Não foi possível atualizar o favorito");
+          setFavorites((items) =>
+            wasFavorite
+              ? Array.from(new Set([...items, id]))
+              : items.filter((item) => item !== id),
+          );
+          notify(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível atualizar o favorito",
+          );
           return wasFavorite;
         } finally {
           endOperation(operation);

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddressDto } from './dto/address.dto';
 
@@ -16,6 +20,11 @@ export class AddressesService {
   async create(userId: number, data: AddressDto) {
     return this.prisma.$transaction(async (tx) => {
       const count = await tx.address.count({ where: { userId } });
+      if (count >= 20) {
+        throw new BadRequestException(
+          'Você atingiu o limite de 20 endereços cadastrados',
+        );
+      }
       if (data.isDefault || count === 0)
         await tx.address.updateMany({
           where: { userId },
@@ -45,28 +54,34 @@ export class AddressesService {
         });
       return tx.address.update({
         where: { id },
-        data: { ...data, state: data.state.toUpperCase() },
+        data: {
+          ...data,
+          state: data.state.toUpperCase(),
+          isDefault: data.isDefault || address.isDefault,
+        },
       });
     });
   }
 
   async remove(userId: number, id: number) {
-    const address = await this.prisma.address.findFirst({
-      where: { id, userId },
-    });
-    if (!address) throw new NotFoundException('Endereço não encontrado');
-    await this.prisma.address.delete({ where: { id } });
-    if (address.isDefault) {
-      const next = await this.prisma.address.findFirst({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
+    return this.prisma.$transaction(async (tx) => {
+      const address = await tx.address.findFirst({
+        where: { id, userId },
       });
-      if (next)
-        await this.prisma.address.update({
-          where: { id: next.id },
-          data: { isDefault: true },
+      if (!address) throw new NotFoundException('Endereço não encontrado');
+      await tx.address.delete({ where: { id } });
+      if (address.isDefault) {
+        const next = await tx.address.findFirst({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
         });
-    }
-    return { success: true };
+        if (next)
+          await tx.address.update({
+            where: { id: next.id },
+            data: { isDefault: true },
+          });
+      }
+      return { success: true };
+    });
   }
 }

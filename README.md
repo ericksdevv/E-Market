@@ -7,7 +7,7 @@ Plataforma full stack de supermercado online desenvolvida como projeto de portf�
 - Cadastro com nome, e-mail, CPF, telefone e endereço
 - Login por e-mail ou CPF, com transições animadas e sessão protegida
 - Senhas com política de complexidade e hash bcrypt
-- Autenticação JWT armazenada em cookie `HttpOnly`
+- Autenticação JWT armazenada em cookie `HttpOnly`, com revogação no logout
 - Catálogo integrado à API, busca, categorias, ofertas e detalhes dos produtos
 - Carrinho e favoritos persistidos no PostgreSQL por usuário
 - Gerenciamento de endereços e dados pessoais
@@ -51,7 +51,7 @@ O navegador se comunica com as rotas internas do frontend. Essas rotas encaminha
 
 O projeto utiliza PostgreSQL e migrations do Prisma. O modelo cobre usuários, endereços, produtos, categorias, carrinho, favoritos, cupons, pedidos, pagamentos, movimentações de estoque e tokens de recuperação de senha.
 
-As migrations também aplicam restrições de unicidade e consistência para CPF, telefone, carrinho, favoritos, estoque e expiração de pedidos.
+As migrations também aplicam restrições de unicidade e consistência para CPF, telefone, carrinho, favoritos, estoque, preços, totais financeiros, quantidades e expiração de pedidos.
 
 ## Configuração
 
@@ -72,7 +72,7 @@ npm run db:migrate
 npm run db:seed
 ```
 
-Preencha `DATABASE_URL` e gere um `JWT_SECRET` aleatório com pelo menos 32 caracteres no arquivo `backend/.env`.
+Preencha `DATABASE_URL` e gere um `JWT_SECRET` aleatório com pelo menos 32 caracteres no arquivo `backend/.env`. O token de recuperação só é exibido localmente quando `PASSWORD_RESET_MODE="demo"`; mantenha `PASSWORD_RESET_MODE="disabled"` fora do ambiente de desenvolvimento e conecte um serviço de e-mail antes de publicar.
 
 Frontend:
 

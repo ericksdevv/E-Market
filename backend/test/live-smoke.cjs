@@ -129,7 +129,13 @@ async function main() {
   })).access_token;
   await request('/auth/me', {}, token);
 
-  console.log('Smoke test concluído: autenticação, catálogo, carrinho, favoritos, cupom, pagamento, cancelamento e recuperação validados.');
+  await request('/auth/logout', { method: 'POST' }, token);
+  const revoked = await fetch(`${baseUrl}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (revoked.status !== 401) throw new Error('A revogação da sessão falhou');
+
+  console.log('Smoke test concluído: autenticação, catálogo, carrinho, favoritos, cupom, pagamento, cancelamento, recuperação e logout validados.');
 }
 
 main()

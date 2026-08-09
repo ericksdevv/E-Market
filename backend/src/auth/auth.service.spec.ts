@@ -18,7 +18,13 @@ const compareMock = bcrypt.compare as unknown as jest.MockedFunction<
 
 describe('AuthService', () => {
   let service: AuthService;
-  const prismaMock = { user: { create: jest.fn(), findFirst: jest.fn() } };
+  const prismaMock = {
+    user: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
+  };
   const jwtServiceMock = { sign: jest.fn() };
   const registration: CreateUserDto = {
     name: 'Erick Anderson',
@@ -148,5 +154,15 @@ describe('AuthService', () => {
         password: registration.password,
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('revoga as sessões existentes ao sair da conta', async () => {
+    prismaMock.user.update.mockResolvedValue({ id: 1 });
+
+    await expect(service.logout(1)).resolves.toEqual({ success: true });
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { sessionVersion: { increment: 1 } },
+    });
   });
 });

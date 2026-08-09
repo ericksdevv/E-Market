@@ -203,26 +203,6 @@ button {
   font-weight: 400;
   animation: auth-copy-in 0.7s var(--ease-out) 0.34s both;
 }
-.auth-benefits {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 25px;
-  margin-top: 30px;
-}
-.auth-benefits span {
-  font-size: 13px;
-  font-weight: 600;
-  animation: auth-benefit-in 0.55s var(--ease-out) both;
-}
-.auth-benefits span:nth-child(1) {
-  animation-delay: 0.42s;
-}
-.auth-benefits span:nth-child(2) {
-  animation-delay: 0.51s;
-}
-.auth-benefits span:nth-child(3) {
-  animation-delay: 0.6s;
-}
 .auth-form-side {
   min-height: 100svh;
   padding: 48px 42px 34px;
@@ -320,26 +300,6 @@ button {
 .auth-switch {
   margin: 30px 0 0;
   font-size: 14px;
-}
-.auth-trust {
-  gap: 37px;
-  margin-top: 28px;
-}
-.auth-trust span {
-  display: grid;
-  gap: 4px;
-  min-width: 105px;
-  font-weight: 600;
-  text-align: center;
-}
-.auth-trust small {
-  display: block;
-  font-weight: 400;
-}
-.social-note,
-.auth-remember,
-.auth-copy-badge {
-  display: none !important;
 }
 
 /* Estrutura do catálogo */
@@ -652,16 +612,6 @@ button {
     transform: none;
   }
 }
-@keyframes auth-benefit-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 @keyframes auth-card-in {
   from {
     opacity: 0;
@@ -863,9 +813,6 @@ button {
     margin: 12px 0 0;
     font-size: 15px;
   }
-  .auth-benefits {
-    display: none;
-  }
   .auth-form-side {
     padding: 28px 14px;
   }
@@ -875,9 +822,6 @@ button {
   }
   .auth-card h1 {
     font-size: 28px;
-  }
-  .auth-trust {
-    gap: 17px;
   }
   .product {
     min-height: 330px;

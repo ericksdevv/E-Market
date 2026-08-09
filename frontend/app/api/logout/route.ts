@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isTrustedOrigin } from "../origin-validation";
 
-const redirectUrl = (_request: NextRequest, path: string) =>
-  `http://127.0.0.1:3001${path}`;
+const API_URL = process.env.API_URL ?? "http://127.0.0.1:3000";
 
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
@@ -11,9 +10,18 @@ export async function POST(request: NextRequest) {
       { status: 403 },
     );
   }
+  const token = request.cookies.get("emarket-session")?.value;
+  if (token) {
+    await fetch(`${API_URL}/auth/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(5_000),
+    }).catch(() => undefined);
+  }
   const response = new NextResponse(null, {
     status: 303,
-    headers: { Location: redirectUrl(request, "/login") },
+    headers: { Location: "/login" },
   });
   response.cookies.delete("emarket-session");
   return response;

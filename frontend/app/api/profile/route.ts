@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { isTrustedOrigin } from "../origin-validation";
 
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:3000";
-const redirectUrl = (_request: NextRequest, path: string) =>
-  `http://127.0.0.1:3001${path}`;
 
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
@@ -18,7 +16,7 @@ export async function POST(request: NextRequest) {
   if (!token) {
     return new NextResponse(null, {
       status: 303,
-      headers: { Location: redirectUrl(request, "/login") },
+      headers: { Location: "/login" },
     });
   }
 
@@ -44,10 +42,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, {
       status: 303,
       headers: {
-        Location: redirectUrl(
-          request,
-          "/perfil?erro=API%20indispon%C3%ADvel",
-        ),
+        Location: "/perfil?erro=API%20indispon%C3%ADvel",
       },
     });
   }
@@ -60,10 +55,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, {
       status: 303,
       headers: {
-        Location: redirectUrl(
-          request,
-          `/perfil?erro=${encodeURIComponent(message)}`,
-        ),
+        Location: `/perfil?erro=${encodeURIComponent(message)}`,
       },
     });
   }
@@ -71,7 +63,7 @@ export async function POST(request: NextRequest) {
   return new NextResponse(null, {
     status: 303,
     headers: {
-      Location: redirectUrl(request, "/perfil?sucesso=1"),
+      Location: "/perfil?sucesso=1",
     },
   });
 }

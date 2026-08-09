@@ -15,7 +15,7 @@ export function AuthFrame({
       <section className="auth-showcase">
         <Image
           className="auth-showcase-image"
-          src="/images/login-market-hero.png"
+          src="/images/login-market-hero.webp"
           alt="Cesta com produtos em um mercado"
           fill
           priority

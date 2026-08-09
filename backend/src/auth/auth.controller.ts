@@ -55,6 +55,12 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  logout(@Req() request: AuthenticatedRequest) {
+    return this.authService.logout(request.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch('me')
   updateMe(@Req() request: AuthenticatedRequest, @Body() body: UpdateUserDto) {
     return this.authService.updateProfile(request.user.sub, body);

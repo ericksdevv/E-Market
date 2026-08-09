@@ -76,7 +76,7 @@ export class AuthService {
   }
 
   async login(data: LoginDto) {
-    if (!data.email && !data.cpf) {
+    if ((!data.email && !data.cpf) || (data.email && data.cpf)) {
       throw new BadRequestException('Informe seu e-mail ou CPF');
     }
 
@@ -108,10 +108,7 @@ export class AuthService {
     const token = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(token).digest('hex');
     await this.prisma.$transaction(async (tx) => {
-      await tx.passwordResetToken.updateMany({
-        where: { userId: user.id, usedAt: null },
-        data: { usedAt: new Date() },
-      });
+      await tx.passwordResetToken.deleteMany({ where: { userId: user.id } });
       await tx.passwordResetToken.create({
         data: {
           userId: user.id,
@@ -120,9 +117,10 @@ export class AuthService {
         },
       });
     });
-    return process.env.NODE_ENV === 'production'
-      ? { message }
-      : { message, resetToken: token };
+    const exposeDemoToken =
+      process.env.NODE_ENV !== 'production' &&
+      process.env.PASSWORD_RESET_MODE === 'demo';
+    return exposeDemoToken ? { message, resetToken: token } : { message };
   }
 
   async resetPassword(token: string, password: string) {
@@ -154,6 +152,9 @@ export class AuthService {
           sessionVersion: { increment: 1 },
         },
       });
+      await tx.passwordResetToken.deleteMany({
+        where: { userId: reset.userId },
+      });
     });
     return { message: 'Senha atualizada com sucesso' };
   }
@@ -179,6 +180,14 @@ export class AuthService {
     }
 
     return { user };
+  }
+
+  async logout(userId: number) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { sessionVersion: { increment: 1 } },
+    });
+    return { success: true };
   }
 
   async updateSettings(userId: number, data: UpdateSettingsDto) {

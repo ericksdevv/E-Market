@@ -2,13 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { isTrustedOrigin } from "../origin-validation";
 
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:3000";
-const redirectUrl = (request: NextRequest, path: string) => {
-  const origin = request.headers.get("origin");
-  const localOrigin = origin?.match(
-    /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i,
-  )?.[0];
-  return `${localOrigin ?? "http://127.0.0.1:3001"}${path}`;
-};
 const digits = (value: FormDataEntryValue | null) =>
   String(value ?? "").replace(/\D/g, "");
 
@@ -57,7 +50,7 @@ export async function POST(request: NextRequest) {
     const message = encodeURIComponent("A API do E-Market está indisponível");
     return new NextResponse(null, {
       status: 303,
-      headers: { Location: redirectUrl(request, `/${page}?erro=${message}`) },
+      headers: { Location: `/${page}?erro=${message}` },
     });
   }
   if (!response.ok) {
@@ -68,10 +61,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, {
       status: 303,
       headers: {
-        Location: redirectUrl(
-          request,
-          `/${mode === "register" ? "cadastro" : "login"}?erro=${encodeURIComponent(message)}`,
-        ),
+        Location: `/${mode === "register" ? "cadastro" : "login"}?erro=${encodeURIComponent(message)}`,
       },
     });
   }
@@ -85,10 +75,7 @@ export async function POST(request: NextRequest) {
   const result = new NextResponse(null, {
     status: 303,
     headers: {
-      Location: redirectUrl(
-        request,
-        "/login?sucesso=1",
-      ),
+      Location: "/login?sucesso=1",
     },
   });
   result.cookies.set("emarket-session", data.access_token, {
@@ -104,11 +91,23 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
-    return NextResponse.json({ message: "Origem não permitida" }, { status: 403 });
+    return NextResponse.json(
+      { message: "Origem não permitida" },
+      { status: 403 },
+    );
+  }
+  const token = request.cookies.get("emarket-session")?.value;
+  if (token) {
+    await fetch(`${API_URL}/auth/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(5_000),
+    }).catch(() => undefined);
   }
   const response = new NextResponse(null, {
     status: 303,
-    headers: { Location: redirectUrl(request, "/login") },
+    headers: { Location: "/login" },
   });
   response.cookies.delete("emarket-session");
   return response;

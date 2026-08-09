@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:3000";
-const redirectUrl = (_request: NextRequest, path: string) =>
-  `http://127.0.0.1:3001${path}`;
 const publicRoutes = [
   "/",
   "/login",
@@ -19,12 +17,12 @@ function isPublic(pathname: string) {
   );
 }
 
-function redirectToLogin(request: NextRequest) {
+function redirectToLogin(clearSession: boolean) {
   const response = new NextResponse(null, {
     status: 307,
-    headers: { Location: redirectUrl(request, "/login") },
+    headers: { Location: "/login" },
   });
-  response.cookies.delete("emarket-session");
+  if (clearSession) response.cookies.delete("emarket-session");
   return response;
 }
 
@@ -32,7 +30,7 @@ export async function proxy(request: NextRequest) {
   if (isPublic(request.nextUrl.pathname)) return NextResponse.next();
 
   const token = request.cookies.get("emarket-session")?.value;
-  if (!token) return redirectToLogin(request);
+  if (!token) return redirectToLogin(false);
 
   try {
     const session = await fetch(`${API_URL}/auth/me`, {
@@ -40,10 +38,10 @@ export async function proxy(request: NextRequest) {
       cache: "no-store",
       signal: AbortSignal.timeout(5_000),
     });
-    if (!session.ok) return redirectToLogin(request);
+    if (!session.ok) return redirectToLogin(true);
     return NextResponse.next();
   } catch {
-    return redirectToLogin(request);
+    return redirectToLogin(false);
   }
 }
 
