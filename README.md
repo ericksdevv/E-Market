@@ -84,23 +84,59 @@ npm install
 
 ## Execução local
 
-Abra dois terminais no VS Code.
+Antes de iniciar, confirme que o PostgreSQL está em execução e que o arquivo
+`backend/.env` contém a `DATABASE_URL` do banco atual. Abra dois terminais do
+PowerShell no VS Code pelo menu **Terminal > Novo Terminal**.
 
-Terminal do backend:
+### Terminal 1 — API e banco de dados
 
 ```powershell
-cd C:\Users\erick\Desktop\e-market\backend
+Set-Location "C:\Users\erick\Desktop\e-market\backend"
+npm install
+npm run db:generate
+npm run db:migrate
 npm run start:dev
 ```
 
-Terminal do frontend:
+Quando aparecer que a aplicação Nest foi iniciada, mantenha esse terminal
+aberto. A API ficará disponível em `http://127.0.0.1:3000`.
+
+### Terminal 2 — site
 
 ```powershell
-cd C:\Users\erick\Desktop\e-market\frontend
-npm run dev -- --port 3001
+Set-Location "C:\Users\erick\Desktop\e-market\frontend"
+npm install
+if (-not (Test-Path .env.local)) { Copy-Item .env.example .env.local }
+npm run dev
 ```
 
-Acesse [http://127.0.0.1:3001](http://127.0.0.1:3001). A API local responde em `http://127.0.0.1:3000`.
+O frontend já está configurado para usar a porta `3001`; não é necessário
+informar a porta no comando. Acesse
+[http://127.0.0.1:3001](http://127.0.0.1:3001).
+
+Depois da primeira instalação, para iniciar novamente basta executar
+`npm run start:dev` na pasta `backend` e `npm run dev` na pasta `frontend`.
+
+### Verificação rápida
+
+Com os dois terminais abertos, execute em um terceiro terminal:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:3000
+Start-Process http://127.0.0.1:3001
+```
+
+Se houver mensagem de conexão recusada, verifique se os terminais continuam
+abertos e se as portas estão ocupadas pelos dois servidores:
+
+```powershell
+Get-NetTCPConnection -State Listen -LocalPort 3000,3001
+```
+
+Se a API apresentar erro de conexão com o banco, inicie o serviço do
+PostgreSQL e confira a `DATABASE_URL` em `backend/.env`. Não execute
+`npm run db:seed` em todas as inicializações; use esse comando somente quando
+quiser cadastrar novamente os dados demonstrativos no banco.
 
 ## Verificações
 

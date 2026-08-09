@@ -32,8 +32,13 @@ input,
 select,
 textarea {
   font-family:
-    Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system,
-    BlinkMacSystemFont, sans-serif;
+    Inter,
+    "Segoe UI Variable",
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
 }
 
 button,
@@ -1987,6 +1992,34 @@ button {
   color: var(--muted);
   font-size: 12px;
 }
+.order-payment-summary {
+  display: grid;
+  gap: 4px;
+}
+.order-payment-summary small {
+  color: var(--muted);
+}
+.order-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.payment-action {
+  gap: 8px;
+  min-height: 40px;
+  padding: 10px 15px;
+  color: #fff;
+  background: var(--brand);
+  box-shadow: 0 8px 20px rgba(22, 130, 82, 0.18);
+}
+.payment-action:hover {
+  background: var(--brand-dark);
+  transform: translateY(-1px);
+}
+.payment-action svg {
+  width: 18px;
+  height: 18px;
+}
 .danger-link {
   border: 0;
   color: #b2323d;
@@ -2156,6 +2189,10 @@ button {
   .catalog-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .order-action-buttons {
+    width: 100%;
+    flex-wrap: wrap;
   }
   .address-form {
     grid-template-columns: 1fr;

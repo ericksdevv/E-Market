@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: "E-Market",
   description:
     "Mercado online com catálogo, carrinho e acompanhamento de pedidos.",
+  icons: {
+    icon: "/favicon.ico?v=2",
+    shortcut: "/favicon.ico?v=2",
+  },
 };
 export default function RootLayout({
   children,

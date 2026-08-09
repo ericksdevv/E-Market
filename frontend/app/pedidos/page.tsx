@@ -20,6 +20,7 @@ const labels: Record<string, string> = {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payingOrderId, setPayingOrderId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const load = () => {
     setLoading(true);
@@ -51,6 +52,28 @@ export default function OrdersPage() {
     }
   };
 
+  const finishPayment = async (id: number) => {
+    setPayingOrderId(id);
+    setError("");
+    try {
+      const paidOrder = await api<ApiOrder>(
+        `/orders/${id}/payment/confirm-demo`,
+        { method: "PATCH" },
+      );
+      setOrders((current) =>
+        current.map((order) => (order.id === id ? paidOrder : order)),
+      );
+    } catch (value) {
+      setError(
+        value instanceof Error
+          ? value.message
+          : "Não foi possível finalizar o pagamento",
+      );
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
+
   return (
     <Shell>
       <main className="container">
@@ -71,44 +94,80 @@ export default function OrdersPage() {
               </button>
             </div>
           ) : orders.length ? (
-            orders.map((order) => (
-              <article className="panel order-card" key={order.id}>
-                <div className="order-card-head">
-                  <div>
-                    <span className="eyebrow">
-                      Pedido #{String(order.id).padStart(6, "0")}
-                    </span>
-                    <h2>{labels[order.status] ?? order.status}</h2>
-                    <p>
-                      {new Date(order.createdAt).toLocaleString("pt-BR")} ·{" "}
-                      {order.items.length}{" "}
-                      {order.items.length === 1 ? "item" : "itens"}
-                    </p>
+            orders.map((order) => {
+              const paymentPending =
+                order.status === "AWAITING_PAYMENT" &&
+                order.payment?.status === "PENDING";
+
+              return (
+                <article className="panel order-card" key={order.id}>
+                  <div className="order-card-head">
+                    <div>
+                      <span className="eyebrow">
+                        Pedido #{String(order.id).padStart(6, "0")}
+                      </span>
+                      <h2>{labels[order.status] ?? order.status}</h2>
+                      <p>
+                        {new Date(order.createdAt).toLocaleString("pt-BR")} ·{" "}
+                        {order.items.length}{" "}
+                        {order.items.length === 1 ? "item" : "itens"}
+                      </p>
+                    </div>
+                    <strong>{money(Number(order.total))}</strong>
                   </div>
-                  <strong>{money(Number(order.total))}</strong>
-                </div>
-                <div className="order-items">
-                  {order.items.map((item) => (
-                    <span key={item.id}>
-                      {item.quantity}× {item.name}
-                    </span>
-                  ))}
-                </div>
-                <div className="order-actions">
-                  <span>
-                    Pagamento: {order.payment?.method?.replaceAll("_", " ")}
-                  </span>
-                  {["AWAITING_PAYMENT", "PAID"].includes(order.status) && (
-                    <button
-                      className="danger-link"
-                      onClick={() => cancel(order.id)}
-                    >
-                      Cancelar pedido
-                    </button>
-                  )}
-                </div>
-              </article>
-            ))
+                  <div className="order-items">
+                    {order.items.map((item) => (
+                      <span key={item.id}>
+                        {item.quantity}× {item.name}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="order-actions">
+                    <div className="order-payment-summary">
+                      <span>
+                        Pagamento: {order.payment?.method?.replaceAll("_", " ")}
+                      </span>
+                      {paymentPending && order.expiresAt && (
+                        <small>
+                          Disponível até{" "}
+                          {new Date(order.expiresAt).toLocaleTimeString(
+                            "pt-BR",
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </small>
+                      )}
+                    </div>
+                    <div className="order-action-buttons">
+                      {paymentPending && (
+                        <button
+                          className="primary payment-action"
+                          type="button"
+                          disabled={payingOrderId === order.id}
+                          onClick={() => void finishPayment(order.id)}
+                        >
+                          <MarketIcon name="card" />
+                          {payingOrderId === order.id
+                            ? "Processando..."
+                            : "Finalizar pagamento"}
+                        </button>
+                      )}
+                      {["AWAITING_PAYMENT", "PAID"].includes(order.status) && (
+                        <button
+                          className="danger-link"
+                          type="button"
+                          onClick={() => void cancel(order.id)}
+                        >
+                          Cancelar pedido
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })
           ) : (
             <div className="panel empty-state">
               <MarketIcon name="basket" />
