@@ -1,4 +1,5 @@
 import { AuthFooter, AuthFrame } from "../auth-frame";
+import { AuthSuccess } from "../auth-success";
 
 export default async function RegisterPage({
   searchParams,
@@ -10,12 +11,10 @@ export default async function RegisterPage({
   if (sucesso) {
     return (
       <AuthFrame mode="register">
-        <meta httpEquiv="refresh" content="2;url=/mercado" />
-        <div className="auth-success">
-          <span className="auth-success-check">✓</span>
-          <p>Conta criada com sucesso</p>
-          <small>Seu mercado está pronto para você.</small>
-        </div>
+        <AuthSuccess
+          title="Conta criada com sucesso"
+          description="Seu mercado está pronto para você."
+        />
       </AuthFrame>
     );
   }
@@ -32,7 +31,7 @@ export default async function RegisterPage({
         <input type="hidden" name="mode" value="register" />
         <label>
           Nome completo
-          <input name="name" placeholder="Seu nome" required />
+          <input name="name" minLength={2} maxLength={120} autoComplete="name" required />
         </label>
         <div className="auth-two-columns">
           <label>
@@ -40,19 +39,33 @@ export default async function RegisterPage({
             <input
               name="email"
               type="email"
-              placeholder="seu@email.com"
+              maxLength={254}
+              autoComplete="email"
               required
             />
           </label>
+          <label>
+            Celular
+            <input
+              name="phone"
+              inputMode="tel"
+              pattern="[0-9 ()+-]{10,16}"
+              autoComplete="tel"
+              required
+            />
+          </label>
+        </div>
+        <div className="auth-two-columns">
           <label>
             CPF
             <input
               name="cpf"
               inputMode="numeric"
-              placeholder="Somente números"
+              pattern="[0-9.-]{11,14}"
               required
             />
           </label>
+          <span />
         </div>
         <p className="auth-section-title">Endereço de entrega</p>
         <label>
@@ -93,8 +106,9 @@ export default async function RegisterPage({
           <input
             name="password"
             type="password"
-            placeholder="Crie uma senha forte"
             minLength={8}
+            maxLength={64}
+            autoComplete="new-password"
             required
           />
         </label>

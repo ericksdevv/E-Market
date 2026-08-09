@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isTrustedOrigin } from "../origin-validation";
 
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:3000";
+const redirectUrl = (_request: NextRequest, path: string) =>
+  `http://127.0.0.1:3001${path}`;
 
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
@@ -14,7 +16,10 @@ export async function POST(request: NextRequest) {
   const token = request.cookies.get("emarket-session")?.value;
 
   if (!token) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return new NextResponse(null, {
+      status: 303,
+      headers: { Location: redirectUrl(request, "/login") },
+    });
   }
 
   const payload = {
@@ -23,25 +28,50 @@ export async function POST(request: NextRequest) {
     phone: String(form.get("phone") ?? "").trim() || null,
   };
 
-  const response = await fetch(`${API_URL}/auth/me`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/auth/me`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch {
+    return new NextResponse(null, {
+      status: 303,
+      headers: {
+        Location: redirectUrl(
+          request,
+          "/perfil?erro=API%20indispon%C3%ADvel",
+        ),
+      },
+    });
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     const message = Array.isArray(body.message)
       ? body.message[0]
-      : (body.message ?? "Could not update your account");
-    return NextResponse.redirect(
-      new URL(`/perfil?erro=${encodeURIComponent(message)}`, request.url),
-    );
+      : (body.message ?? "Não foi possível atualizar sua conta");
+    return new NextResponse(null, {
+      status: 303,
+      headers: {
+        Location: redirectUrl(
+          request,
+          `/perfil?erro=${encodeURIComponent(message)}`,
+        ),
+      },
+    });
   }
 
-  return NextResponse.redirect(new URL("/perfil?sucesso=1", request.url));
+  return new NextResponse(null, {
+    status: 303,
+    headers: {
+      Location: redirectUrl(request, "/perfil?sucesso=1"),
+    },
+  });
 }

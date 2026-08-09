@@ -11,6 +11,195 @@
   --surface: #ffffff;
   --danger: #ca3b3b;
 }
+
+/* Camada final de tema e consistência visual */
+:root {
+  --ink: #17201c;
+  --muted: #65716a;
+  --line: #dfe6e1;
+  --brand: #168252;
+  --brand-dark: #0f6841;
+  --lime: #b8e665;
+  --cream: #f5f7f5;
+  --surface: #ffffff;
+  --surface-soft: #f0f4f1;
+  --focus: rgba(22, 130, 82, 0.2);
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family:
+    Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+}
+
+button,
+.primary,
+.secondary,
+.market-primary,
+.market-secondary,
+.cart-link {
+  min-height: 42px;
+  line-height: 1.2;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button:disabled,
+.primary:disabled,
+.auth-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
+.add:disabled {
+  width: auto;
+  min-width: 72px;
+  padding: 0 10px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.stock-note.unavailable {
+  color: var(--danger);
+}
+
+.auth-submit-link {
+  text-decoration: none;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #edf2ef;
+  --muted: #a2aea7;
+  --line: #303a35;
+  --brand: #43b982;
+  --brand-dark: #2d9b69;
+  --lime: #a8d95c;
+  --cream: #111512;
+  --surface: #191e1b;
+  --surface-soft: #222925;
+  --focus: rgba(67, 185, 130, 0.3);
+}
+
+[data-theme="dark"] body,
+[data-theme="dark"] .page,
+[data-theme="dark"] .market-home,
+[data-theme="dark"] .app-main-area {
+  color: var(--ink);
+  background: #111512;
+}
+
+[data-theme="dark"] .header {
+  border-color: var(--line);
+  background: rgba(20, 25, 22, 0.94);
+}
+
+[data-theme="dark"] .panel,
+[data-theme="dark"] .product,
+[data-theme="dark"] .choice,
+[data-theme="dark"] .settings-menu,
+[data-theme="dark"] .settings-panel,
+[data-theme="dark"] .order-card,
+[data-theme="dark"] .benefit,
+[data-theme="dark"] .category {
+  color: var(--ink);
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+[data-theme="dark"] .search input {
+  color: var(--ink);
+  border-color: #39443e;
+  background: #151a17;
+}
+
+[data-theme="dark"] .product-art,
+[data-theme="dark"] .product-symbol,
+[data-theme="dark"] .cart-item-art,
+[data-theme="dark"] .choice-icon {
+  color: #79d5a5;
+  background: #222a25;
+}
+
+[data-theme="dark"] .price,
+[data-theme="dark"] .logo,
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] b,
+[data-theme="dark"] strong {
+  color: var(--ink);
+}
+
+[data-theme="dark"] .global-sidebar,
+[data-theme="dark"] .global-sidebar-head,
+[data-theme="dark"] .global-sidebar-shortcuts {
+  color: var(--ink);
+  border-color: var(--line);
+  background: #171c19;
+}
+
+[data-theme="dark"] .global-sidebar-categories a,
+[data-theme="dark"] .global-sidebar-shortcuts a,
+[data-theme="dark"] .global-sidebar-head strong {
+  color: #cbd5cf;
+}
+
+[data-theme="dark"] .global-sidebar-categories a:hover,
+[data-theme="dark"] .global-sidebar-categories a.active,
+[data-theme="dark"] .global-sidebar-shortcuts a:hover,
+[data-theme="dark"] .global-sidebar-shortcuts a.active {
+  color: #76d3a2;
+  background: #222c26;
+}
+
+[data-theme="dark"] .footer {
+  color: #c3cec7;
+  background: #0b0f0d;
+}
+
+[data-theme="dark"] .auth-page,
+[data-theme="dark"] .auth-form-side {
+  color: var(--ink);
+  background: #111512;
+}
+
+[data-theme="dark"] .auth-card {
+  color: var(--ink);
+  border-color: var(--line);
+  background: #191e1b;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.38);
+}
+
+[data-theme="dark"] .auth-card h1,
+[data-theme="dark"] .auth-form label {
+  color: var(--ink);
+}
+
+[data-theme="dark"] .auth-form input {
+  color: var(--ink);
+  border-color: #39443e;
+  background: #121714;
+}
 * {
   box-sizing: border-box;
 }
@@ -1292,6 +1481,18 @@ button {
 .auth-showcase,
 .auth-form-side {
   animation: auth-fade 0.55s ease both;
+}
+.auth-page {
+  transition:
+    opacity 0.55s ease,
+    transform 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+    filter 0.55s ease;
+  transform-origin: center;
+}
+.auth-transition-out .auth-page {
+  opacity: 0;
+  filter: blur(5px);
+  transform: scale(1.015);
 }
 .auth-card {
   animation: auth-rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.14s both;

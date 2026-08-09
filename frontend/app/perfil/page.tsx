@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Shell } from "../components";
 import { MarketIcon } from "../icons";
+import { AddressManager, type Address } from "../address-manager";
 
 async function getCurrentUser() {
   const apiUrl = process.env.API_URL ?? "http://127.0.0.1:3000";
@@ -23,8 +24,16 @@ async function getCurrentUser() {
   const data = (await response.json()) as {
     user: { name: string; email: string; phone?: string | null };
   };
+  const addressResponse = await fetch(`${apiUrl}/addresses`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+    signal: AbortSignal.timeout(5_000),
+  });
+  const addresses = addressResponse.ok
+    ? ((await addressResponse.json()) as Address[])
+    : [];
 
-  return data.user;
+  return { user: data.user, addresses };
 }
 
 export default async function Profile({
@@ -32,7 +41,7 @@ export default async function Profile({
 }: {
   searchParams: Promise<{ erro?: string; sucesso?: string }>;
 }) {
-  const user = await getCurrentUser();
+  const { user, addresses } = await getCurrentUser();
   const { erro, sucesso } = await searchParams;
 
   return (
@@ -115,6 +124,7 @@ export default async function Profile({
             </p>
           </aside>
         </div>
+        <AddressManager initialAddresses={addresses} />
       </main>
     </Shell>
   );

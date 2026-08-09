@@ -23,6 +23,7 @@ async function forward(
   if (
     !path.length ||
     !ALLOWED_ROOTS.has(path[0]) ||
+    (path[0] === "auth" && ["login", "register"].includes(path[1] ?? "")) ||
     path.some((part) => part === ".." || part.includes("/"))
   ) {
     return NextResponse.json(
@@ -66,6 +67,7 @@ async function forward(
       },
       body: body || undefined,
       cache: "no-store",
+      signal: AbortSignal.timeout(12_000),
     });
     return new NextResponse(await response.text(), {
       status: response.status,

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./components.css";
 import "./storefront.css";
-import "./design-system.css";
 import { StoreProvider } from "./components";
 export const metadata: Metadata = {
   title: "E-Market",
@@ -13,7 +12,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" data-theme="light" suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         <script
           dangerouslySetInnerHTML={{

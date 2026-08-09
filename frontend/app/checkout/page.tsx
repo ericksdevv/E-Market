@@ -53,6 +53,7 @@ export default function CheckoutPage() {
   const [shippingMethod, setShippingMethod] = useState("DELIVERY");
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
+  const [discountSubtotal, setDiscountSubtotal] = useState<number | null>(null);
   const [showAddress, setShowAddress] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -74,6 +75,8 @@ export default function CheckoutPage() {
     void loadAddresses().catch((value: Error) => setError(value.message));
   }, [loadAddresses]);
   const delivery = shippingMethod === "PICKUP" || total >= 100 ? 0 : 7.9;
+
+  const effectiveDiscount = discountSubtotal === total ? discount : 0;
 
   const addAddress = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -101,9 +104,11 @@ export default function CheckoutPage() {
         `/coupons/validate?code=${encodeURIComponent(couponCode)}&subtotal=${total}`,
       );
       setDiscount(Math.min(total, data.discount));
+      setDiscountSubtotal(total);
       setError("");
     } catch (value) {
       setDiscount(0);
+      setDiscountSubtotal(null);
       setError(value instanceof Error ? value.message : "Cupom inválido");
     }
   };
@@ -119,17 +124,34 @@ export default function CheckoutPage() {
           addressId,
           shippingMethod,
           paymentMethod,
-          couponCode: couponCode || undefined,
+          couponCode: effectiveDiscount > 0 ? couponCode : undefined,
         }),
       });
       setOrder(created);
-      clearCart();
+      await clearCart();
     } catch (value) {
       setError(
         value instanceof Error
           ? value.message
           : "Não foi possível confirmar o pedido",
       );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const confirmDemoPayment = async () => {
+    if (!order) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const paid = await api<ApiOrder>(
+        `/orders/${order.id}/payment/confirm-demo`,
+        { method: "PATCH" },
+      );
+      setOrder(paid);
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "Não foi possível confirmar o pagamento");
     } finally {
       setSubmitting(false);
     }
@@ -153,11 +175,25 @@ export default function CheckoutPage() {
             </p>
             {order.payment?.method === "PIX" && (
               <div className="pix-box">
-                <b>PIX gerado</b>
+                <b>PIX de demonstração</b>
                 <code>{order.payment.qrCode}</code>
-                <small>Use o código acima para concluir o pagamento.</small>
+                <small>Este código não realiza uma cobrança real.</small>
               </div>
             )}
+            {order.payment?.status === "PENDING" && (
+              <button
+                className="secondary"
+                type="button"
+                disabled={submitting}
+                onClick={confirmDemoPayment}
+              >
+                {submitting ? "Confirmando..." : "Simular pagamento aprovado"}
+              </button>
+            )}
+            {order.payment?.status === "PAID" && (
+              <p className="save-feedback">Pagamento aprovado.</p>
+            )}
+            {error && <p className="form-error">{error}</p>}
             <Link className="primary" href="/pedidos">
               Acompanhar pedido
             </Link>
@@ -304,15 +340,15 @@ export default function CheckoutPage() {
               <span>Entrega</span>
               <b>{delivery ? money(delivery) : "Grátis"}</b>
             </div>
-            {discount > 0 && (
+            {effectiveDiscount > 0 && (
               <div className="summary-row discount">
                 <span>Desconto</span>
-                <b>− {money(discount)}</b>
+                <b>− {money(effectiveDiscount)}</b>
               </div>
             )}
             <div className="summary-total">
               <span>Total</span>
-              <span>{money(Math.max(0, total + delivery - discount))}</span>
+              <span>{money(Math.max(0, total + delivery - effectiveDiscount))}</span>
             </div>
             {error && <p className="form-error">{error}</p>}
             <button
@@ -326,9 +362,6 @@ export default function CheckoutPage() {
                   ? "Confirmar pedido"
                   : "Carrinho vazio"}
             </button>
-            <p className="secure-note">
-              <MarketIcon name="lock" /> Conexão protegida.
-            </p>
           </aside>
         </div>
       </main>

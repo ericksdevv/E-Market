@@ -14,8 +14,8 @@ export class AddressesService {
   }
 
   async create(userId: number, data: AddressDto) {
-    const count = await this.prisma.address.count({ where: { userId } });
     return this.prisma.$transaction(async (tx) => {
+      const count = await tx.address.count({ where: { userId } });
       if (data.isDefault || count === 0)
         await tx.address.updateMany({
           where: { userId },

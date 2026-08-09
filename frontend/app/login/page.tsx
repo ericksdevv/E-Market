@@ -2,15 +2,21 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { AuthFooter, AuthFrame } from "../auth-frame";
 import { MarketIcon } from "../icons";
+import { AuthSuccess } from "../auth-success";
 
-function getSessionName(token?: string) {
+async function getSessionName() {
+  const token = (await cookies()).get("emarket-session")?.value;
   if (!token) return undefined;
   try {
-    return (
-      JSON.parse(
-        Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8"),
-      ) as { name?: string }
-    ).name;
+    const apiUrl = process.env.API_URL ?? "http://127.0.0.1:3000";
+    const response = await fetch(`${apiUrl}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!response.ok) return undefined;
+    const data = (await response.json()) as { user?: { name?: string } };
+    return data.user?.name;
   } catch {
     return undefined;
   }
@@ -22,20 +28,14 @@ export default async function LoginPage({
   searchParams: Promise<{ erro?: string; sucesso?: string }>;
 }) {
   const { erro, sucesso } = await searchParams;
-  const userName = getSessionName(
-    (await cookies()).get("emarket-session")?.value,
-  );
+  const userName = sucesso ? await getSessionName() : undefined;
   if (sucesso)
     return (
       <AuthFrame mode="login" userName={userName}>
-        <meta httpEquiv="refresh" content="2;url=/mercado" />
-        <div className="auth-success">
-          <span className="auth-success-check">
-            <MarketIcon name="check" />
-          </span>
-          <p>Login efetuado com sucesso</p>
-          <small>Preparando seu mercado...</small>
-        </div>
+        <AuthSuccess
+          title="Login efetuado com sucesso"
+          description="Preparando seu mercado..."
+        />
       </AuthFrame>
     );
   return (
@@ -69,6 +69,7 @@ export default async function LoginPage({
             autoComplete="current-password"
             aria-label="Senha"
             minLength={8}
+            maxLength={64}
             required
           />
         </div>

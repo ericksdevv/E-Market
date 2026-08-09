@@ -7,3 +7,6 @@ export function getJwtSecret(): string {
 
   return secret;
 }
+
+export const JWT_ISSUER = 'e-market-api';
+export const JWT_AUDIENCE = 'e-market-web';

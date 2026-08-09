@@ -11,9 +11,16 @@ export class ProductsService {
     maxPrice?: string;
     offer?: boolean;
   }) {
+    const query = filters.q?.trim().slice(0, 120);
+    const minPrice = filters.minPrice ? Number(filters.minPrice) : undefined;
+    const maxPrice = filters.maxPrice ? Number(filters.maxPrice) : undefined;
+    const validMin =
+      Number.isFinite(minPrice) && minPrice! >= 0 ? minPrice : undefined;
+    const validMax =
+      Number.isFinite(maxPrice) && maxPrice! >= 0 ? maxPrice : undefined;
     const currentPrice = {
-      gte: filters.minPrice ? Number(filters.minPrice) : undefined,
-      lte: filters.maxPrice ? Number(filters.maxPrice) : undefined,
+      gte: validMin,
+      lte: validMax,
     };
     const orderBy =
       filters.sort === 'price-asc'
@@ -27,17 +34,17 @@ export class ProductsService {
       where: {
         isActive: true,
         ...(filters.category ? { category: { slug: filters.category } } : {}),
-        ...(filters.q
+        ...(query
           ? {
               OR: [
-                { name: { contains: filters.q, mode: 'insensitive' as const } },
+                { name: { contains: query, mode: 'insensitive' as const } },
                 {
-                  brand: { contains: filters.q, mode: 'insensitive' as const },
+                  brand: { contains: query, mode: 'insensitive' as const },
                 },
               ],
             }
           : {}),
-        ...(filters.minPrice || filters.maxPrice
+        ...(validMin !== undefined || validMax !== undefined
           ? { price: currentPrice }
           : {}),
         ...(filters.offer ? { promotionalPrice: { not: null } } : {}),
@@ -46,6 +53,7 @@ export class ProductsService {
         category: true,
       },
       orderBy,
+      take: 100,
     });
   }
   categories() {
@@ -57,9 +65,10 @@ export class ProductsService {
   async bySlug(slug: string) {
     const product = await this.prisma.product.findUnique({
       where: { slug },
-      include: { category: true },
+      include: { category: true, images: { orderBy: { sortOrder: 'asc' } } },
     });
-    if (!product) throw new NotFoundException('Produto não encontrado');
+    if (!product?.isActive)
+      throw new NotFoundException('Produto não encontrado');
     return product;
   }
 }

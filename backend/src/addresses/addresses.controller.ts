@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Req,
@@ -26,15 +27,15 @@ export class AddressesController {
   }
   @Patch(':id') update(
     @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() body: AddressDto,
   ) {
-    return this.addresses.update(req.user.sub, Number(id), body);
+    return this.addresses.update(req.user.sub, id, body);
   }
   @Delete(':id') remove(
     @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.addresses.remove(req.user.sub, Number(id));
+    return this.addresses.remove(req.user.sub, id);
   }
 }

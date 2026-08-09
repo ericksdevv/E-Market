@@ -1,7 +1,10 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
 import {
   CartStatus,
@@ -15,9 +18,27 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly prisma: PrismaService) {}
   private include = { address: true, items: true, payment: true } as const;
+  private readonly logger = new Logger(OrdersService.name);
+  private expirationTimer?: NodeJS.Timeout;
+
+  onModuleInit() {
+    this.expirationTimer = setInterval(() => {
+      void this.expirePendingOrders().catch(() =>
+        this.logger.warn('Falha ao processar pedidos expirados'),
+      );
+    }, 60_000);
+    this.expirationTimer.unref();
+    void this.expirePendingOrders().catch(() =>
+      this.logger.warn('Falha ao processar pedidos expirados'),
+    );
+  }
+
+  onModuleDestroy() {
+    if (this.expirationTimer) clearInterval(this.expirationTimer);
+  }
 
   list(userId: number) {
     return this.prisma.order.findMany({
@@ -47,14 +68,13 @@ export class OrdersService {
     if (!cart?.items.length)
       throw new BadRequestException('Seu carrinho está vazio');
     if (!address) throw new BadRequestException('Endereço inválido');
-    for (const item of cart.items)
-      if (!item.product.isActive || item.product.stock < item.quantity)
-        throw new BadRequestException(
-          `Estoque insuficiente para ${item.product.name}`,
-        );
 
-    const subtotal = cart.items.reduce(
-      (sum, item) => sum.add(item.unitPrice.mul(item.quantity)),
+    const pricedItems = cart.items.map((item) => ({
+      ...item,
+      checkoutPrice: item.product.promotionalPrice ?? item.product.price,
+    }));
+    const subtotal = pricedItems.reduce(
+      (sum, item) => sum.add(item.checkoutPrice.mul(item.quantity)),
       new Prisma.Decimal(0),
     );
     const shippingFee =
@@ -86,6 +106,48 @@ export class OrdersService {
     const total = subtotal.add(shippingFee).sub(discount);
 
     return this.prisma.$transaction(async (tx) => {
+      const cartClaim = await tx.cart.updateMany({
+        where: { id: cart.id, userId, status: CartStatus.ACTIVE },
+        data: { status: CartStatus.CONVERTED },
+      });
+      if (cartClaim.count === 0) {
+        throw new BadRequestException(
+          'Este carrinho já foi finalizado. Atualize a página e tente novamente',
+        );
+      }
+
+      for (const item of cart.items) {
+        const stockUpdate = await tx.product.updateMany({
+          where: {
+            id: item.productId,
+            isActive: true,
+            stock: { gte: item.quantity },
+          },
+          data: { stock: { decrement: item.quantity } },
+        });
+        if (stockUpdate.count === 0) {
+          throw new BadRequestException(
+            `Estoque insuficiente para ${item.product.name}`,
+          );
+        }
+      }
+
+      if (coupon) {
+        const couponUpdate = await tx.coupon.updateMany({
+          where: {
+            id: coupon.id,
+            isActive: true,
+            ...(coupon.startsAt ? { startsAt: { lte: new Date() } } : {}),
+            ...(coupon.expiresAt ? { expiresAt: { gte: new Date() } } : {}),
+            ...(coupon.maxUsage ? { usedCount: { lt: coupon.maxUsage } } : {}),
+          },
+          data: { usedCount: { increment: 1 } },
+        });
+        if (couponUpdate.count === 0) {
+          throw new BadRequestException('Cupom inválido para esta compra');
+        }
+      }
+
       const order = await tx.order.create({
         data: {
           userId,
@@ -97,13 +159,14 @@ export class OrdersService {
           total,
           shippingMethod: data.shippingMethod,
           notes: data.notes,
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
           items: {
-            create: cart.items.map((item) => ({
+            create: pricedItems.map((item) => ({
               productId: item.productId,
               name: item.product.name,
-              unitPrice: item.unitPrice,
+              unitPrice: item.checkoutPrice,
               quantity: item.quantity,
-              subtotal: item.unitPrice.mul(item.quantity),
+              subtotal: item.checkoutPrice.mul(item.quantity),
             })),
           },
           payment: {
@@ -111,10 +174,10 @@ export class OrdersService {
               method: data.paymentMethod,
               status: PaymentStatus.PENDING,
               amount: total,
-              provider: 'EMARKET',
+              provider: 'EMARKET_DEMO',
               qrCode:
                 data.paymentMethod === 'PIX'
-                  ? `000201EMARKET${Date.now()}`
+                  ? `DEMO-PIX-${Date.now()}-${userId}`
                   : null,
             },
           },
@@ -122,10 +185,6 @@ export class OrdersService {
         include: this.include,
       });
       for (const item of cart.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
-        });
         await tx.stockMovement.create({
           data: {
             productId: item.productId,
@@ -135,27 +194,129 @@ export class OrdersService {
           },
         });
       }
-      await tx.cart.update({
-        where: { id: cart.id },
-        data: { status: CartStatus.CONVERTED },
-      });
-      if (coupon)
-        await tx.coupon.update({
-          where: { id: coupon.id },
-          data: { usedCount: { increment: 1 } },
-        });
       return order;
     });
   }
 
-  async cancel(userId: number, id: number) {
-    const order = await this.detail(userId, id);
+  async confirmDemoPayment(userId: number, id: number) {
     if (
-      order.status !== OrderStatus.AWAITING_PAYMENT &&
-      order.status !== OrderStatus.PAID
-    )
-      throw new BadRequestException('Este pedido não pode mais ser cancelado');
+      process.env.NODE_ENV === 'production' &&
+      process.env.PAYMENT_MODE !== 'demo'
+    ) {
+      throw new BadRequestException('Pagamento de demonstração desativado');
+    }
+
     return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id, userId },
+        include: this.include,
+      });
+      if (!order) throw new NotFoundException('Pedido não encontrado');
+      if (
+        order.status !== OrderStatus.AWAITING_PAYMENT ||
+        order.payment?.status !== PaymentStatus.PENDING
+      ) {
+        throw new BadRequestException('Este pagamento não está pendente');
+      }
+      const claim = await tx.order.updateMany({
+        where: { id, userId, status: OrderStatus.AWAITING_PAYMENT },
+        data: { status: OrderStatus.PAID },
+      });
+      if (claim.count === 0) {
+        throw new BadRequestException('O pedido já foi atualizado');
+      }
+      await tx.payment.update({
+        where: { orderId: id },
+        data: { status: PaymentStatus.PAID, paidAt: new Date() },
+      });
+      return tx.order.findUnique({
+        where: { id },
+        include: this.include,
+      });
+    });
+  }
+
+  private async expirePendingOrders() {
+    const expired = await this.prisma.order.findMany({
+      where: {
+        status: OrderStatus.AWAITING_PAYMENT,
+        expiresAt: { lte: new Date() },
+      },
+      select: { id: true },
+      take: 100,
+    });
+
+    for (const { id } of expired) {
+      await this.prisma.$transaction(async (tx) => {
+        const order = await tx.order.findUnique({
+          where: { id },
+          include: { items: true, payment: true },
+        });
+        if (!order) return;
+        const claim = await tx.order.updateMany({
+          where: {
+            id,
+            status: OrderStatus.AWAITING_PAYMENT,
+            expiresAt: { lte: new Date() },
+          },
+          data: { status: OrderStatus.EXPIRED },
+        });
+        if (claim.count === 0) return;
+
+        for (const item of order.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          });
+          await tx.stockMovement.create({
+            data: {
+              productId: item.productId,
+              type: StockMovementType.IN,
+              quantity: item.quantity,
+              reason: `Expiração do pedido #${id}`,
+            },
+          });
+        }
+        if (order.couponId) {
+          await tx.coupon.updateMany({
+            where: { id: order.couponId, usedCount: { gt: 0 } },
+            data: { usedCount: { decrement: 1 } },
+          });
+        }
+        if (order.payment) {
+          await tx.payment.update({
+            where: { orderId: id },
+            data: { status: PaymentStatus.FAILED },
+          });
+        }
+      });
+    }
+  }
+
+  async cancel(userId: number, id: number) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id, userId },
+        include: this.include,
+      });
+      if (!order) throw new NotFoundException('Pedido não encontrado');
+      if (
+        order.status !== OrderStatus.AWAITING_PAYMENT &&
+        order.status !== OrderStatus.PAID
+      ) {
+        throw new BadRequestException(
+          'Este pedido não pode mais ser cancelado',
+        );
+      }
+
+      const claim = await tx.order.updateMany({
+        where: { id, userId, status: order.status },
+        data: { status: OrderStatus.CANCELED },
+      });
+      if (claim.count === 0) {
+        throw new BadRequestException('O pedido já foi atualizado');
+      }
+
       for (const item of order.items) {
         await tx.product.update({
           where: { id: item.productId },
@@ -170,9 +331,29 @@ export class OrdersService {
           },
         });
       }
-      return tx.order.update({
+      if (order.couponId) {
+        await tx.coupon.updateMany({
+          where: {
+            id: order.couponId,
+            usedCount: { gt: 0 },
+          },
+          data: { usedCount: { decrement: 1 } },
+        });
+      }
+      const payment = await tx.payment.findUnique({
+        where: { orderId: order.id },
+      });
+      if (payment) {
+        await tx.payment.update({
+          where: { orderId: order.id },
+          data:
+            order.status === OrderStatus.PAID
+              ? { status: PaymentStatus.REFUNDED }
+              : { status: PaymentStatus.FAILED },
+        });
+      }
+      return tx.order.findUnique({
         where: { id },
-        data: { status: OrderStatus.CANCELED },
         include: this.include,
       });
     });

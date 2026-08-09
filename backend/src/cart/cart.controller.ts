@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Req,
@@ -12,6 +13,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { CartService } from './cart.service';
+import { AddCartItemDto, ChangeCartItemDto } from './dto/cart-item.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('cart')
 export class CartController {
@@ -21,25 +23,24 @@ export class CartController {
   }
   @Post('items') add(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { productId: number; quantity?: number },
+    @Body() body: AddCartItemDto,
   ) {
-    return this.cart.add(
-      req.user.sub,
-      Number(body.productId),
-      Number(body.quantity ?? 1),
-    );
+    return this.cart.add(req.user.sub, body.productId, body.quantity);
   }
   @Patch('items/:productId') change(
     @Req() req: AuthenticatedRequest,
-    @Param('productId') id: string,
-    @Body() body: { quantity: number },
+    @Param('productId', ParseIntPipe) id: number,
+    @Body() body: ChangeCartItemDto,
   ) {
-    return this.cart.change(req.user.sub, Number(id), Number(body.quantity));
+    return this.cart.change(req.user.sub, id, body.quantity);
   }
   @Delete('items/:productId') remove(
     @Req() req: AuthenticatedRequest,
-    @Param('productId') id: string,
+    @Param('productId', ParseIntPipe) id: number,
   ) {
-    return this.cart.remove(req.user.sub, Number(id));
+    return this.cart.remove(req.user.sub, id);
+  }
+  @Delete('items') clear(@Req() req: AuthenticatedRequest) {
+    return this.cart.clear(req.user.sub);
   }
 }

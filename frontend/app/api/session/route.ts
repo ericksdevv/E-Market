@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { isTrustedOrigin } from "../origin-validation";
 
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:3000";
+const redirectUrl = (request: NextRequest, path: string) => {
+  const origin = request.headers.get("origin");
+  const localOrigin = origin?.match(
+    /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i,
+  )?.[0];
+  return `${localOrigin ?? "http://127.0.0.1:3001"}${path}`;
+};
 const digits = (value: FormDataEntryValue | null) =>
   String(value ?? "").replace(/\D/g, "");
 
@@ -20,6 +27,7 @@ export async function POST(request: NextRequest) {
       ? {
           name: String(form.get("name") ?? "").trim(),
           email: String(form.get("email") ?? "").trim(),
+          phone: digits(form.get("phone")),
           cpf: digits(form.get("cpf")),
           street: String(form.get("street") ?? "").trim(),
           number: String(form.get("number") ?? "").trim(),
@@ -35,12 +43,23 @@ export async function POST(request: NextRequest) {
             : { cpf: digits(identifier) }),
           password: String(form.get("password") ?? ""),
         };
-  const response = await fetch(`${API_URL}/auth/${mode}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/auth/${mode}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch {
+    const page = mode === "register" ? "cadastro" : "login";
+    const message = encodeURIComponent("A API do E-Market está indisponível");
+    return new NextResponse(null, {
+      status: 303,
+      headers: { Location: redirectUrl(request, `/${page}?erro=${message}`) },
+    });
+  }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     const message = Array.isArray(body.message)
@@ -49,7 +68,10 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, {
       status: 303,
       headers: {
-        Location: `/${mode === "register" ? "cadastro" : "login"}?erro=${encodeURIComponent(message)}`,
+        Location: redirectUrl(
+          request,
+          `/${mode === "register" ? "cadastro" : "login"}?erro=${encodeURIComponent(message)}`,
+        ),
       },
     });
   }
@@ -60,11 +82,14 @@ export async function POST(request: NextRequest) {
       { status: 502 },
     );
   }
-  const destination =
-    mode === "register" ? "/cadastro?sucesso=1" : "/login?sucesso=1";
   const result = new NextResponse(null, {
     status: 303,
-    headers: { Location: destination },
+    headers: {
+      Location: redirectUrl(
+        request,
+        "/login?sucesso=1",
+      ),
+    },
   });
   result.cookies.set("emarket-session", data.access_token, {
     httpOnly: true,
@@ -78,7 +103,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const response = NextResponse.redirect(new URL("/login", request.url), 303);
+  if (!isTrustedOrigin(request)) {
+    return NextResponse.json({ message: "Origem não permitida" }, { status: 403 });
+  }
+  const response = new NextResponse(null, {
+    status: 303,
+    headers: { Location: redirectUrl(request, "/login") },
+  });
   response.cookies.delete("emarket-session");
   return response;
 }

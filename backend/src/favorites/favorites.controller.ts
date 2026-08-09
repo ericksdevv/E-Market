@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { FavoritesService } from './favorites.service';
+import { ToggleFavoriteDto } from './dto/toggle-favorite.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('favorites')
@@ -14,10 +15,7 @@ export class FavoritesController {
   }
 
   @Post('toggle')
-  toggle(
-    @Req() req: AuthenticatedRequest,
-    @Body() body: { productId: number },
-  ) {
-    return this.favorites.toggle(req.user.sub, Number(body.productId));
+  toggle(@Req() req: AuthenticatedRequest, @Body() body: ToggleFavoriteDto) {
+    return this.favorites.toggle(req.user.sub, body.productId);
   }
 }

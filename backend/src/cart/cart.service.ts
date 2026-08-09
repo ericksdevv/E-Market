@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CartStatus } from '@prisma/client';
+import { CartStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 @Injectable()
 export class CartService {
@@ -20,16 +20,30 @@ export class CartService {
     },
   };
   async current(userId: number) {
-    let cart = await this.prisma.cart.findFirst({
+    const existing = await this.prisma.cart.findFirst({
       where: { userId, status: CartStatus.ACTIVE },
       include: this.include,
     });
-    if (!cart)
-      cart = await this.prisma.cart.create({
+    if (existing) return existing;
+    try {
+      return await this.prisma.cart.create({
         data: { userId },
         include: this.include,
       });
-    return cart;
+    } catch (error) {
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== 'P2002'
+      ) {
+        throw error;
+      }
+      const cart = await this.prisma.cart.findFirst({
+        where: { userId, status: CartStatus.ACTIVE },
+        include: this.include,
+      });
+      if (!cart) throw new NotFoundException('Carrinho não encontrado');
+      return cart;
+    }
   }
   async add(userId: number, productId: number, quantity = 1) {
     if (quantity < 1) throw new BadRequestException('Quantidade inválida');
@@ -67,18 +81,26 @@ export class CartService {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
     });
-    if (!product || product.stock < quantity)
+    if (!product?.isActive || product.stock < quantity)
       throw new BadRequestException('Estoque insuficiente');
-    await this.prisma.cartItem.update({
-      where: { cartId_productId: { cartId: cart.id, productId } },
+    const result = await this.prisma.cartItem.updateMany({
+      where: { cartId: cart.id, productId },
       data: { quantity },
     });
+    if (result.count === 0) throw new NotFoundException('Item não encontrado');
     return this.current(userId);
   }
   async remove(userId: number, productId: number) {
     const cart = await this.current(userId);
     await this.prisma.cartItem.deleteMany({
       where: { cartId: cart.id, productId },
+    });
+    return this.current(userId);
+  }
+  async clear(userId: number) {
+    const cart = await this.current(userId);
+    await this.prisma.cartItem.deleteMany({
+      where: { cartId: cart.id },
     });
     return this.current(userId);
   }

@@ -99,11 +99,16 @@ export default function ProductPage() {
               <span className="old-price">De {money(product.oldPrice)}</span>
             )}
             <div className="price product-price">{money(product.price)}</div>
-            <p className="stock-note">
-              <MarketIcon name="check" /> Em estoque
+            <p className={`stock-note ${product.stock <= 0 ? "unavailable" : ""}`}>
+              <MarketIcon name="check" />
+              {product.stock > 0 ? "Em estoque" : "Produto indisponível"}
             </p>
-            <button className="primary full" onClick={() => add(product)}>
-              Adicionar ao carrinho
+            <button
+              className="primary full"
+              disabled={product.stock <= 0}
+              onClick={() => add(product)}
+            >
+              {product.stock > 0 ? "Adicionar ao carrinho" : "Esgotado"}
             </button>
             <button
               className="secondary full"

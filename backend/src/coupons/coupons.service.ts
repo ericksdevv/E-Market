@@ -6,8 +6,15 @@ import { PrismaService } from '../prisma/prisma.service';
 export class CouponsService {
   constructor(private readonly prisma: PrismaService) {}
   async validate(code: string, subtotal: number) {
+    const normalizedCode = code.trim().toUpperCase();
+    if (!normalizedCode || normalizedCode.length > 40) {
+      throw new BadRequestException('Cupom inválido para esta compra');
+    }
+    if (!Number.isFinite(subtotal) || subtotal <= 0) {
+      throw new BadRequestException('Subtotal inválido');
+    }
     const coupon = await this.prisma.coupon.findUnique({
-      where: { code: code.trim().toUpperCase() },
+      where: { code: normalizedCode },
     });
     const now = new Date();
     if (
@@ -24,6 +31,13 @@ export class CouponsService {
       coupon.type === CouponType.PERCENTAGE
         ? new Prisma.Decimal(subtotal).mul(coupon.value).div(100)
         : coupon.value;
-    return { code: coupon.code, discount: Number(discount), type: coupon.type };
+    const limitedDiscount = discount.greaterThan(subtotal)
+      ? new Prisma.Decimal(subtotal)
+      : discount;
+    return {
+      code: coupon.code,
+      discount: Number(limitedDiscount),
+      type: coupon.type,
+    };
   }
 }

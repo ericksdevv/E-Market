@@ -47,7 +47,17 @@ export default function FavoritesPage() {
         ) : products.length ? (
           <div className="product-grid page-products">
             {products.map((product) => (
-              <ProductCard product={product} key={product.id} />
+              <ProductCard
+                product={product}
+                key={product.id}
+                onFavoriteChange={(favorited) => {
+                  if (!favorited) {
+                    setProducts((items) =>
+                      items.filter((item) => item.id !== product.id),
+                    );
+                  }
+                }}
+              />
             ))}
           </div>
         ) : (

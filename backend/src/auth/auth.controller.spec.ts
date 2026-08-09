@@ -10,6 +10,7 @@ describe('AuthController', () => {
   const registration: CreateUserDto = {
     name: 'Erick Anderson',
     email: 'erick@example.com',
+    phone: '85999999999',
     cpf: '12345678901',
     street: 'Rua Central',
     number: '100',

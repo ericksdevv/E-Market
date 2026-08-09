@@ -6,6 +6,7 @@ export type AuthenticatedUser = {
   email: string;
   name: string;
   role: UserRole;
+  version: number;
 };
 
 export type AuthenticatedRequest = Request & {

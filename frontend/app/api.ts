@@ -29,8 +29,13 @@ export type ApiOrder = {
   status: string;
   total: number | string;
   createdAt: string;
+  expiresAt?: string | null;
   items: Array<{ id: number; name: string; quantity: number }>;
-  payment?: { method?: string; qrCode?: string | null } | null;
+  payment?: {
+    method?: string;
+    status?: string;
+    qrCode?: string | null;
+  } | null;
 };
 
 type ApiError = { message?: string | string[] } | null;
@@ -56,7 +61,7 @@ export async function api<T = unknown>(
     const data = (await response.json().catch(() => null)) as ApiError | T;
     if (!response.ok) {
       if (response.status === 401 && typeof window !== "undefined")
-        window.location.href = "/login";
+        window.location.replace("/login");
       const error = data as ApiError;
       throw new Error(
         Array.isArray(error?.message)
@@ -88,5 +93,7 @@ export function fromApiProduct(value: ApiProduct): Product {
     oldPrice: value.promotionalPrice ? Number(value.price) : undefined,
     unit: value.unit ?? "",
     tag: value.promotionalPrice ? "Oferta" : undefined,
+    stock: value.stock ?? 0,
+    description: value.description ?? undefined,
   };
 }

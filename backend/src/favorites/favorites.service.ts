@@ -7,7 +7,7 @@ export class FavoritesService {
 
   async list(userId: number) {
     return this.prisma.favorite.findMany({
-      where: { userId },
+      where: { userId, product: { isActive: true } },
       include: {
         product: {
           include: {

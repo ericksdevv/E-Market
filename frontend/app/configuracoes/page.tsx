@@ -10,6 +10,7 @@ export default function SettingsPage() {
   const [orderUpdates, setOrderUpdates] = useState(true);
   const [marketingEmails, setMarketingEmails] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     api<ApiUserSettings>("/auth/me")
@@ -20,13 +21,22 @@ export default function SettingsPage() {
       .catch(() => undefined);
   }, []);
 
-  const save = async (updates: Record<string, boolean | string>) => {
-    await api("/auth/settings", {
-      method: "PATCH",
-      body: JSON.stringify(updates),
-    });
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2000);
+  const save = async (
+    updates: Record<string, boolean | string>,
+    rollback?: () => void,
+  ) => {
+    setError("");
+    try {
+      await api("/auth/settings", {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+      });
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2000);
+    } catch (value) {
+      rollback?.();
+      setError(value instanceof Error ? value.message : "Não foi possível salvar");
+    }
   };
 
   return (
@@ -86,7 +96,10 @@ export default function SettingsPage() {
                 checked={orderUpdates}
                 onChange={(event) => {
                   setOrderUpdates(event.target.checked);
-                  void save({ orderUpdates: event.target.checked });
+                  void save(
+                    { orderUpdates: event.target.checked },
+                    () => setOrderUpdates(!event.target.checked),
+                  );
                 }}
               />
             </label>
@@ -101,11 +114,15 @@ export default function SettingsPage() {
                 checked={marketingEmails}
                 onChange={(event) => {
                   setMarketingEmails(event.target.checked);
-                  void save({ marketingEmails: event.target.checked });
+                  void save(
+                    { marketingEmails: event.target.checked },
+                    () => setMarketingEmails(!event.target.checked),
+                  );
                 }}
               />
             </label>
             {saved && <p className="save-feedback">✓ Preferências salvas</p>}
+            {error && <p className="form-error">{error}</p>}
             <div className="danger-zone">
               <div>
                 <b>Sair deste dispositivo</b>

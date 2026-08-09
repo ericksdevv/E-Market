@@ -23,6 +23,7 @@ describe('AuthService', () => {
   const registration: CreateUserDto = {
     name: 'Erick Anderson',
     email: 'erick@example.com',
+    phone: '85999999999',
     cpf: '12345678901',
     street: 'Rua Central',
     number: '100',
@@ -54,6 +55,7 @@ describe('AuthService', () => {
       name: registration.name,
       email: registration.email,
       role: UserRole.CLIENT,
+      sessionVersion: 0,
     });
     jwtServiceMock.sign.mockReturnValue('signed-token');
 
@@ -63,6 +65,7 @@ describe('AuthService', () => {
       data: {
         name: registration.name,
         email: registration.email,
+        phone: registration.phone,
         cpf: registration.cpf,
         password: 'hashed-password',
         addresses: {
@@ -77,7 +80,13 @@ describe('AuthService', () => {
           },
         },
       },
-      select: { id: true, name: true, email: true, role: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        sessionVersion: true,
+      },
     });
     expect(result).toEqual({
       access_token: 'signed-token',
@@ -111,6 +120,7 @@ describe('AuthService', () => {
       password: 'hashed-password',
       role: UserRole.CLIENT,
       isActive: true,
+      sessionVersion: 0,
     });
     jwtServiceMock.sign.mockReturnValue('signed-token');
 

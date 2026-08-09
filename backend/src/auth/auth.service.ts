@@ -14,6 +14,9 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { createHash, randomBytes } from 'crypto';
 
+const DUMMY_PASSWORD_HASH =
+  '$2b$12$C6UzMDM.H6dfI/f/IKxGhuE8RrV7xT7d5DMJxKxY9VJvYw7n8bKjK';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -30,6 +33,7 @@ export class AuthService {
           name: data.name,
           email: data.email,
           password: hashedPassword,
+          phone: data.phone,
           cpf: data.cpf,
           addresses: {
             create: {
@@ -43,7 +47,13 @@ export class AuthService {
             },
           },
         },
-        select: { id: true, name: true, email: true, role: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          sessionVersion: true,
+        },
       });
       return this.issueSession(user);
     } catch (error) {
@@ -51,6 +61,14 @@ export class AuthService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
+        const fields = Array.isArray(error.meta?.target)
+          ? error.meta.target
+          : [];
+        if (fields.includes('phone')) {
+          throw new ConflictException(
+            'Este número de celular já foi vinculado a outra conta',
+          );
+        }
         throw new ConflictException('E-mail ou CPF já cadastrado');
       }
       throw error;
@@ -71,11 +89,11 @@ export class AuthService {
       },
     });
 
-    if (
-      !user ||
-      !user.isActive ||
-      !(await bcrypt.compare(data.password, user.password))
-    ) {
+    const validPassword = await bcrypt.compare(
+      data.password,
+      user?.password ?? DUMMY_PASSWORD_HASH,
+    );
+    if (!user || !user.isActive || !validPassword) {
       throw new UnauthorizedException('E-mail, CPF ou senha inválidos');
     }
 
@@ -89,18 +107,22 @@ export class AuthService {
     if (!user) return { message };
     const token = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(token).digest('hex');
-    await this.prisma.passwordResetToken.updateMany({
-      where: { userId: user.id, usedAt: null },
-      data: { usedAt: new Date() },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.passwordResetToken.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      await tx.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash,
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        },
+      });
     });
-    await this.prisma.passwordResetToken.create({
-      data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-      },
-    });
-    return { message };
+    return process.env.NODE_ENV === 'production'
+      ? { message }
+      : { message, resetToken: token };
   }
 
   async resetPassword(token: string, password: string) {
@@ -111,16 +133,28 @@ export class AuthService {
     if (!reset || reset.usedAt || reset.expiresAt < new Date())
       throw new BadRequestException('Link de recuperação inválido ou expirado');
     const hashedPassword = await bcrypt.hash(password, 12);
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: reset.userId },
-        data: { password: hashedPassword },
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: reset.id },
+    await this.prisma.$transaction(async (tx) => {
+      const claim = await tx.passwordResetToken.updateMany({
+        where: {
+          id: reset.id,
+          usedAt: null,
+          expiresAt: { gte: new Date() },
+        },
         data: { usedAt: new Date() },
-      }),
-    ]);
+      });
+      if (claim.count === 0) {
+        throw new BadRequestException(
+          'Link de recuperação inválido ou expirado',
+        );
+      }
+      await tx.user.update({
+        where: { id: reset.userId },
+        data: {
+          password: hashedPassword,
+          sessionVersion: { increment: 1 },
+        },
+      });
+    });
     return { message: 'Senha atualizada com sucesso' };
   }
 
@@ -216,6 +250,7 @@ export class AuthService {
     email: string;
     name: string;
     role?: string;
+    sessionVersion: number;
   }) {
     return {
       access_token: this.jwtService.sign({
@@ -223,6 +258,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
+        version: user.sessionVersion,
       }),
       user: {
         id: user.id,

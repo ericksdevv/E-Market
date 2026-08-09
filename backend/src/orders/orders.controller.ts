@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Req,
@@ -22,9 +23,9 @@ export class OrdersController {
   }
   @Get(':id') detail(
     @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.orders.detail(req.user.sub, Number(id));
+    return this.orders.detail(req.user.sub, id);
   }
   @Post() create(
     @Req() req: AuthenticatedRequest,
@@ -34,8 +35,14 @@ export class OrdersController {
   }
   @Patch(':id/cancel') cancel(
     @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.orders.cancel(req.user.sub, Number(id));
+    return this.orders.cancel(req.user.sub, id);
+  }
+  @Patch(':id/payment/confirm-demo') confirmDemoPayment(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.orders.confirmDemoPayment(req.user.sub, id);
   }
 }

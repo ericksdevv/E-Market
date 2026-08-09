@@ -28,8 +28,9 @@ type StoreState = {
   add: (product: Product) => void;
   change: (id: number, delta: number) => void;
   remove: (id: number) => void;
-  clearCart: () => void;
-  favorite: (id: number) => void;
+  clearCart: () => Promise<void>;
+  reloadCart: () => Promise<void>;
+  favorite: (id: number) => Promise<boolean>;
   toast: string | null;
   dark: boolean;
   setDark: (value: boolean) => void;
@@ -62,10 +63,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [themeReady, setThemeReady] = useState(false);
   const accountStateLoaded = useRef(false);
   const hasLocalTheme = useRef(false);
+  const pendingOperations = useRef(new Set<string>());
+
+  const beginOperation = useCallback((key: string) => {
+    if (pendingOperations.current.has(key)) return false;
+    pendingOperations.current.add(key);
+    return true;
+  }, []);
+
+  const endOperation = useCallback((key: string) => {
+    pendingOperations.current.delete(key);
+  }, []);
 
   const notify = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(null), 2600);
+  }, []);
+
+  const reloadCart = useCallback(async () => {
+    const data = await api<ApiCart>("/cart");
+    setCart(mapCart(data));
   }, []);
 
   useEffect(() => {
@@ -135,12 +152,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       count: cart.reduce((sum, item) => sum + item.quantity, 0),
       total: cart.reduce((sum, item) => sum + item.quantity * item.price, 0),
       add: (product) => {
+        if (product.stock <= 0) {
+          notify("Produto indisponível no momento");
+          return;
+        }
+        const operation = `cart:${product.id}`;
+        if (!beginOperation(operation)) return;
         setCart((current) => {
           const found = current.find((item) => item.id === product.id);
           return found
             ? current.map((item) =>
                 item.id === product.id
-                  ? { ...item, quantity: item.quantity + 1 }
+                  ? {
+                      ...item,
+                      quantity: Math.min(item.quantity + 1, product.stock),
+                    }
                   : item,
               )
             : [...current, { ...product, quantity: 1 }];
@@ -152,15 +178,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           .then((data) => setCart(mapCart(data)))
           .catch((error: Error) => {
             notify(error.message);
-            void api<ApiCart>("/cart").then((data) => setCart(mapCart(data)));
-          });
+            void reloadCart().catch(() => undefined);
+          })
+          .finally(() => endOperation(operation));
         notify(`${product.name} adicionado ao carrinho`);
       },
       change: (id, delta) => {
+        const operation = `cart:${id}`;
+        if (!beginOperation(operation)) return;
         const current = cart.find((item) => item.id === id);
-        if (!current) return;
+        if (!current) {
+          endOperation(operation);
+          return;
+        }
 
-        const quantity = current.quantity + delta;
+        const quantity = Math.min(current.quantity + delta, current.stock);
+        if (delta > 0 && quantity === current.quantity) {
+          notify("Quantidade máxima disponível atingida");
+          endOperation(operation);
+          return;
+        }
         setCart((items) =>
           items.flatMap((item) =>
             item.id !== id
@@ -175,49 +212,87 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ quantity }),
         })
           .then((data) => setCart(mapCart(data)))
-          .catch((error: Error) => notify(error.message));
+          .catch((error: Error) => {
+            notify(error.message);
+            void reloadCart().catch(() => undefined);
+          })
+          .finally(() => endOperation(operation));
       },
       remove: (id) => {
+        const operation = `cart:${id}`;
+        if (!beginOperation(operation)) return;
         setCart((items) => items.filter((item) => item.id !== id));
         void api<ApiCart>(`/cart/items/${id}`, { method: "DELETE" })
           .then((data) => setCart(mapCart(data)))
-          .catch((error: Error) => notify(error.message));
+          .catch((error: Error) => {
+            notify(error.message);
+            void reloadCart().catch(() => undefined);
+          })
+          .finally(() => endOperation(operation));
         notify("Item removido do carrinho");
       },
-      clearCart: () => setCart([]),
-      favorite: (id) => {
+      clearCart: async () => {
+        setCart([]);
+        try {
+          const data = await api<ApiCart>("/cart/items", { method: "DELETE" });
+          setCart(mapCart(data));
+        } catch (error) {
+          notify(error instanceof Error ? error.message : "Não foi possível limpar o carrinho");
+          await reloadCart().catch(() => undefined);
+        }
+      },
+      reloadCart,
+      favorite: async (id) => {
         const wasFavorite = favorites.includes(id);
+        const operation = `favorite:${id}`;
+        if (!beginOperation(operation)) return wasFavorite;
         setFavorites((items) =>
           items.includes(id)
             ? items.filter((item) => item !== id)
             : [...items, id],
         );
-        void api<{ favorited: boolean }>("/favorites/toggle", {
-          method: "POST",
-          body: JSON.stringify({ productId: id }),
-        })
-          .then(({ favorited }) =>
-            setFavorites((items) =>
-              favorited
-                ? Array.from(new Set([...items, id]))
-                : items.filter((item) => item !== id),
-            ),
-          )
-          .catch((error: Error) => {
+        try {
+          const { favorited } = await api<{ favorited: boolean }>(
+            "/favorites/toggle",
+            {
+              method: "POST",
+              body: JSON.stringify({ productId: id }),
+            },
+          );
+          setFavorites((items) =>
+            favorited
+              ? Array.from(new Set([...items, id]))
+              : items.filter((item) => item !== id),
+          );
+          return favorited;
+        } catch (error) {
             setFavorites((items) =>
               wasFavorite
                 ? Array.from(new Set([...items, id]))
                 : items.filter((item) => item !== id),
             );
-            notify(error.message);
-          });
+          notify(error instanceof Error ? error.message : "Não foi possível atualizar o favorito");
+          return wasFavorite;
+        } finally {
+          endOperation(operation);
+        }
       },
       toast,
       dark,
       setDark: persistTheme,
       toggleDark: () => persistTheme(!dark),
     }),
-    [cart, dark, favorites, notify, persistTheme, toast],
+    [
+      beginOperation,
+      cart,
+      dark,
+      endOperation,
+      favorites,
+      notify,
+      persistTheme,
+      reloadCart,
+      toast,
+    ],
   );
 
   return (

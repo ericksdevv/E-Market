@@ -25,7 +25,13 @@ export function SectionHeading({
   );
 }
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  onFavoriteChange,
+}: {
+  product: Product;
+  onFavoriteChange?: (favorited: boolean) => void;
+}) {
   const { add, favorite, favorites } = useStore();
   const isFavorite = favorites.includes(product.id);
 
@@ -40,7 +46,9 @@ export function ProductCard({ product }: { product: Product }) {
       {product.tag && <span className="product-tag">{product.tag}</span>}
       <button
         className={`heart ${isFavorite ? "active" : ""}`}
-        onClick={() => favorite(product.id)}
+        onClick={() => {
+          void favorite(product.id).then(onFavoriteChange);
+        }}
         aria-label={
           isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos"
         }
@@ -62,10 +70,15 @@ export function ProductCard({ product }: { product: Product }) {
           <span className="price">{money(product.price)}</span>
           <button
             className="add"
+            disabled={product.stock <= 0}
             onClick={() => add(product)}
-            aria-label={`Adicionar ${product.name}`}
+            aria-label={
+              product.stock > 0
+                ? `Adicionar ${product.name}`
+                : `${product.name} indisponível`
+            }
           >
-            <MarketIcon name="cart" />
+            {product.stock > 0 ? <MarketIcon name="cart" /> : "Esgotado"}
           </button>
         </div>
       </div>

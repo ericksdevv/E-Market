@@ -14,6 +14,7 @@ const labels: Record<string, string> = {
   OUT_FOR_DELIVERY: "Saiu para entrega",
   DELIVERED: "Entregue",
   CANCELED: "Cancelado",
+  EXPIRED: "Pagamento expirado",
 };
 
 export default function OrdersPage() {

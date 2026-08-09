@@ -1,11 +1,30 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsOptional, IsString, Matches } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+
+const trimText = (value: unknown): unknown =>
+  typeof value === 'string' ? value.trim() : value;
 
 export class UpdateUserDto {
   @IsString()
+  @Transform(({ value }) => trimText(value))
+  @MinLength(2)
+  @MaxLength(120)
   name!: string;
 
+  @Transform(({ value }) =>
+    String(value ?? '')
+      .trim()
+      .toLowerCase(),
+  )
   @IsEmail({}, { message: 'Informe um e-mail válido' })
+  @MaxLength(254)
   email!: string;
 
   @IsOptional()

@@ -8,6 +8,8 @@ export type Product = {
   unit: string;
   tag?: string;
   brand?: string;
+  stock: number;
+  description?: string;
 };
 
 export const categories = [

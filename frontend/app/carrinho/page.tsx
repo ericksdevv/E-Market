@@ -7,7 +7,7 @@ import { money } from "../store-data";
 
 export default function CartPage() {
   const { cart, total, change, remove } = useStore();
-  const delivery = total >= 100 ? 0 : 7.9;
+  const delivery = cart.length && total < 100 ? 7.9 : 0;
 
   return (
     <Shell>
@@ -86,14 +86,16 @@ export default function CartPage() {
               <span>Total</span>
               <span>{money(total + delivery)}</span>
             </div>
-            {total < 100 && (
+            {cart.length > 0 && total < 100 && (
               <p className="secure-note">
                 Faltam {money(100 - total)} para frete grátis.
               </p>
             )}
-            <Link className="primary full" href="/checkout">
-              Ir para o checkout <MarketIcon name="arrow" />
-            </Link>
+            {cart.length > 0 && (
+              <Link className="primary full" href="/checkout">
+                Ir para o checkout <MarketIcon name="arrow" />
+              </Link>
+            )}
             <Link
               className="text-link cart-continue"
               href="/categorias/hortifruti"
